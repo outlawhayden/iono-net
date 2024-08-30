@@ -1,0 +1,14 @@
+name: iono_net_env
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - jax
+  - jaxlib
+  - numpy
+  - scipy
+  - matplotlib
+  - pip
+  - pip:
+    - tensorflow
+    - torch
