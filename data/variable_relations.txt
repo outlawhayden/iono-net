@@ -1,0 +1,20 @@
+%{
+Relation to the document "SAR Autofocus using Machine Learning", as of 08/05/2023. 
+
+For all records: 
+
+X -> dataset.meta.X --- coordinates of antenna (<--> U)
+Z -> dataset.meta.Z --- coordinates of antenna (<--> mu, Xi)
+S -> dataset.meta.S --- coordinates of phase screen (<--> Theta, Theta'') 
+F -> dataset.meta.setup.F --- dimensionless length of the synthetic aperture
+xi -> dataset.meta.setup.xi --- relative screen elevation, should be equal to 0.5
+
+For iseed = 1,2,3,4:
+
+mu      -> dataset.records{iseed}.nuStructs.withSpeckle.complVal    - total target reflectivity (point scatterers + speckle)
+Xi      -> dataset.records{iseed}.nuStructs.withoutSpeckle.complVal - target reflectivity, point scatterers only  
+Theta   -> dataset.records{iseed}.storedPsi.val                     - screen density 
+Theta'' -> dataset.records{iseed}.storedPsi_dd_Val                  - the second derivative of the screen density 
+U       -> dataset.records{iseed}.uscStruct.vals                    - data (the received antenna signal)
+
+%}

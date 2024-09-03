@@ -81,8 +81,7 @@ function createDataForRangeOfSeeds(stepRefinePow, ionoNharm, seeds, outputMatfna
         dataset.records{iseed} = rec; 
      
         if iseed == 1 % lazy init 
-            dataset.meta.X = rec.uscStruct.xarg;           % antenna coords
-            % do NOT produce image, so don't need to store image coords            
+            dataset.meta.X = rec.uscStruct.xarg;           % antenna coords % do NOT produce image, so dont need to store image coords            
             dataset.meta.Z = rec.nuStructs.withSpeckle.zarg; % scatterer coords
             dataset.meta.S = rec.storedPsi.arg;            % screen coords
         else % sanity check 
@@ -156,7 +155,7 @@ function [psCoord, psAmpl] = create_psCoord_psAmpl(setup)
         return; 
     end
     
-    % restrict PScoord to integer values, don't allow repeat coords 
+    % restrict PScoord to integer values, dontt allow repeat coords 
     speckleDomainLims = BareboneUtilsIonoAF.getSpeckleDomainLims(setup); 
     imgDomainLims = speckleDomainLims + setup.F * [1, -1]; 
     assert( (rem(imgDomainLims(1), 1) == 0) && ...
