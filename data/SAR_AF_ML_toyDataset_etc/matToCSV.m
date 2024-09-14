@@ -1,4 +1,4 @@
-function testCreateDataForAiCSV
+function matToCSV
 
     seeds.count = 4; % Modify as per original script intent
 
@@ -53,6 +53,12 @@ function exportStructToCsv(data, coord, structName, iseed, outputDir)
             error('Unsupported struct type');
         end
     else
+        % Specific handling for storedPsi_dd_Val
+        if strcmp(structName, 'storedPsi_dd_Val')
+            % Remove first and last elements from data to match coord size
+            data = data(2:end-1);
+        end
+        
         % Check if coord and data sizes are compatible
         len_coord = length(coord(:));
         len_data = length(data(:));
