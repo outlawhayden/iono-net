@@ -40,7 +40,7 @@ end
 function plotScreenInMultipleWays(iseed, matFname)
     S = load(matFname); 
     fprintf('Loading data from %s\n', matFname);   
-
+ 
     setup = S.dataset.meta.setup; 
     compl_ampls = S.dataset.records{iseed}.psiParams.compl_ampls; 
     storedPsi = S.dataset.records{iseed}.storedPsi; 
