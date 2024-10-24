@@ -1,6 +1,6 @@
 function matToCSV
 
-    seeds.count = 4; % Modify as per original script intent
+    seeds.count = 1000; % Modify as per original script intent
 
     stepRefinePow = 2;  
     ionoNharm = 6; 
@@ -10,24 +10,28 @@ function matToCSV
         mkdir(outputDir);  % Create output directory if it doesn't exist
     end
     
+    % Load the dataset once outside the loop
+    matFname = 'radarSeries.mat';  
+    S = load(matFname);  % Load the .mat file only once
+    
+    % Loop over seeds and process them
     for iseed = 1:seeds.count
-        createDataForRangeOfSeeds(stepRefinePow, ionoNharm, seeds, iseed, outputDir); 
+        createDataForRangeOfSeeds(stepRefinePow, ionoNharm, seeds, iseed, outputDir, S); 
     end
     
     disp 'DONE'
 end
 
-function createDataForRangeOfSeeds(stepRefinePow, ionoNharm, seeds, iseed, outputDir)
-    matFname = 'radarSeries.mat';  % Change to your .mat filename
-    
-    % Load the dataset
-    S = load(matFname); 
-    fprintf('Loading data from %s for seed %d\n', matFname, iseed);   
+function createDataForRangeOfSeeds(stepRefinePow, ionoNharm, seeds, iseed, outputDir, S)
+    fprintf('Processing seed %d\n', iseed);   
     
     % Extract relevant data for this seed
     setup = S.dataset.meta.setup;
     record = S.dataset.records{iseed};
     meta = S.dataset.meta;
+    
+    % Extract compl_ampls (complex amplitudes)
+    compl_ampls = S.dataset.compl_ampls{iseed};
     
     % Export each relevant struct to separate CSV files
     exportStructToCsv(record.nuStructs.withSpeckle, meta.Z, 'nuStruct_withSpeckle', iseed, outputDir);
@@ -36,8 +40,12 @@ function createDataForRangeOfSeeds(stepRefinePow, ionoNharm, seeds, iseed, outpu
     exportStructToCsv(record.storedPsi_dd_Val, meta.S(2:end-1), 'storedPsi_dd_Val', iseed, outputDir);
     exportStructToCsv(record.uscStruct.vals, meta.X, 'uscStruct_vals', iseed, outputDir);
     
+    % Export compl_ampls (complex amplitudes) to a CSV file
+    exportStructToCsv(compl_ampls, [], 'compl_ampls', iseed, outputDir);
+    
     disp(['Data for seed ' num2str(iseed) ' exported to CSV.']);
 end
+
 function exportStructToCsv(data, coord, structName, iseed, outputDir)
     % Check if data is a struct
     if isstruct(data)
@@ -52,6 +60,10 @@ function exportStructToCsv(data, coord, structName, iseed, outputDir)
         else
             error('Unsupported struct type');
         end
+    elseif isnumeric(data) && isempty(coord)
+        % Handle abs_ampls (complex amplitudes) when coord is empty
+        T = table(real(data(:)), imag(data(:)), abs(data(:)), ...
+                  'VariableNames', {'RealPart', 'ImagPart', 'AbsValue'});
     else
         % Specific handling for storedPsi_dd_Val
         if strcmp(structName, 'storedPsi_dd_Val')

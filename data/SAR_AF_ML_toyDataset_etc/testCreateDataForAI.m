@@ -1,7 +1,8 @@
 % modified from minusI4_BareboneSetup
 function testCreateDataForAI
 
-    seeds.count = 4; 1000;
+    % data generation size
+    seeds.count = 1000;
 
     stepRefinePow = 2;  
     ionoNharm = 6; 
@@ -79,6 +80,12 @@ function createDataForRangeOfSeeds(stepRefinePow, ionoNharm, seeds, outputMatfna
         rec.storedPsi = rec.psiParams.getStoredPsi(); 
         rec.storedPsi_dd_Val = buildPsi_dd_Vals(dataset.meta.kPsi, rec.psiParams.compl_ampls, rec.storedPsi.arg);         
         dataset.records{iseed} = rec; 
+
+        %% Added this section to store compl_ampls
+        % Store compl_ampls to dataset
+        compl_ampls = rec.psiParams.compl_ampls;    % <-- Extract the compl_ampls
+        dataset.compl_ampls{iseed} = compl_ampls;          % <-- Store compl_ampls for each seed
+        %% End of added section
      
         if iseed == 1 % lazy init 
             dataset.meta.X = rec.uscStruct.xarg;           % antenna coords % do NOT produce image, so dont need to store image coords            

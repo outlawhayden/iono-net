@@ -5,10 +5,15 @@ dependencies:
   - python=3.10
   - jax
   - jaxlib
+  - optax
+  - enlighten
+  - glob2
   - numpy
   - scipy
   - matplotlib
   - pip
+  - jupyter
+
   - pip:
     - tensorflow
     - torch
