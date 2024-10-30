@@ -2,7 +2,7 @@
 function testCreateDataForAI
 
     % data generation size
-    seeds.count = 10000;
+    seeds.count = 100;
 
     stepRefinePow = 2;  
     ionoNharm = 6; 
