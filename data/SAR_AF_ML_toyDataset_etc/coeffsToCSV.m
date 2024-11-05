@@ -14,22 +14,25 @@ function coeffsToCSV
     matFname = 'radarSeries.mat';  
     S = load(matFname);  % Load the .mat file only once
     
-    % Initialize matrices to accumulate nuStruct_withSpeckle and compl_ampls data
+    % Initialize matrices to accumulate nuStruct_withSpeckle, compl_ampls, and uscStruct_vals data
     nuStructMatrix = [];
     complAmplsMatrix = [];
+    uscStruct_valsMatrix = [];
 
     % Loop over seeds and process them
     for iseed = 1:seeds.count
-        [nuStructCol, complAmplsCol] = processSeed(stepRefinePow, ionoNharm, seeds, iseed, S);
-        disp(size(complAmplsCol))
+        [nuStructCol, complAmplsCol, uscStruct_valsCol] = processSeed(stepRefinePow, ionoNharm, seeds, iseed, S);
+        
         % Accumulate columns for each seed
         nuStructMatrix = [nuStructMatrix, nuStructCol]; % Append new column
         complAmplsMatrix = [complAmplsMatrix, complAmplsCol]; % Append new column
+        uscStruct_valsMatrix = [uscStruct_valsMatrix, uscStruct_valsCol]; % Append new column
     end
     
     % Export the matrices to CSV
     exportMatrixToCsv(nuStructMatrix, 'nuStruct_withSpeckle', outputDir);
     exportMatrixToCsv(complAmplsMatrix, 'compl_ampls', outputDir);
+    exportMatrixToCsv(uscStruct_valsMatrix, 'uscStruct_vals', outputDir);  % Export the new matrix
     
     % Export dataset.meta.kPs as a table to CSV
     kPsi = S.dataset.meta.kPsi;  % Extract kPs
@@ -38,7 +41,7 @@ function coeffsToCSV
     disp 'DONE'
 end
 
-function [nuStructCol, complAmplsCol] = processSeed(stepRefinePow, ionoNharm, seeds, iseed, S)
+function [nuStructCol, complAmplsCol, uscStruct_valsCol] = processSeed(stepRefinePow, ionoNharm, seeds, iseed, S)
     fprintf('Processing seed %d\n', iseed);   
     
     % Extract relevant data for this seed
@@ -51,6 +54,10 @@ function [nuStructCol, complAmplsCol] = processSeed(stepRefinePow, ionoNharm, se
     % Extract nuStruct_withSpeckle (complex values) and convert to a column vector
     nuStruct = record.nuStructs.withSpeckle.complVal;
     nuStructCol = nuStruct(:);  % Ensure it's a column
+    
+    % Extract uscStruct_vals (values) and convert to a column vector
+    uscStruct_vals = record.uscStruct.vals;
+    uscStruct_valsCol = uscStruct_vals(:);  % Ensure it's a column
 end
 
 function exportMatrixToCsv(matrix, matrixName, outputDir)

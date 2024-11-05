@@ -1,0 +1,26 @@
+# config.yml
+learning_rate:
+  initial: 0.003
+  gamma: 0.95
+  step: 2000
+  final: 0.00001
+
+optimizer:
+  maxiter_adam: 20000
+  maxiter_lbfgs: 1000
+
+model:
+  hidden_width: 12
+  trunk_architecture: [1024,512,256,238,64,32]
+  trunk_activation: tanh
+  trunk_input_dim: 1
+  trunk_output_dim: 1
+  trunk_sensor: 2882 # length of input 
+
+dataset:
+  num_train: 1000
+  num_test: 300
+
+training:
+  batch_size: 100
+  max_epochs: 100 # use maxiter_adam or maxiter_lbfgs instead
