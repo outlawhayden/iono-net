@@ -1,0 +1,6 @@
+
+to do hyperparameter opt
+nohup python3 optuna_train_model.py > output.log 2>&1 &
+
+to check output:
+tail -f output.log

@@ -1,26 +1,34 @@
-# config.yml
 learning_rate:
-  initial: 0.003
-  gamma: 0.95
-  step: 2000
-  final: 0.00001
+  initial: 0.003        # Default starting learning rate (Optuna will override)
+  gamma: 0.95           # Learning rate decay factor (Optuna will override)
+  step: 2000            # Steps between decay applications
+  final: 0.00001        # Final learning rate after decay
 
 optimizer:
-  maxiter_adam: 20000
-  maxiter_lbfgs: 1000
+  maxiter_adam: 20000   # Maximum iterations for the Adam optimizer
+  maxiter_lbfgs: 1000   # Maximum iterations for LBFGS (if used)
 
 model:
-  hidden_width: 12
-  trunk_architecture: [1024,512,256,238,64,32]
-  trunk_activation: tanh
-  trunk_input_dim: 1
-  trunk_output_dim: 1
-  trunk_sensor: 2882 # length of input 
+  trunk_activation: tanh          # Activation function to use
+  trunk_input_dim: 1              # Input dimension (e.g., number of features per signal point)
+  trunk_output_dim: 1             # Output dimension (e.g., number of coefficients to predict)
+  trunk_sensor: 2882              # Length of input signal
+  architecture_range:             # Range of possible architectures for Optuna to sample
+    min_layers: 3                 # Minimum number of layers
+    max_layers: 6                 # Maximum number of layers
+    layer_size_min: 16           # Minimum units per layer
+    layer_size_max: 1024          # Maximum units per layer
+  architecture_penalty: 0.00005
 
 dataset:
-  num_train: 1000
-  num_test: 300
+  num_train: 1000                 # Number of training samples
+  num_test: 300                   # Number of test samples
 
 training:
-  batch_size: 100
-  max_epochs: 100 # use maxiter_adam or maxiter_lbfgs instead
+  batch_size: 100                 # Default batch size (Optuna will override)
+  max_epochs: 100                 # Number of epochs for training (use maxiter_adam instead)
+  
+paths:
+  label_data_file_path: '/home/houtlaw/iono-net/data/SAR_AF_ML_toyDataset_etc/radar_coeffs_csv_small/compl_ampls_20241104_212602.csv'
+  signal_data_file_path: '/home/houtlaw/iono-net/data/SAR_AF_ML_toyDataset_etc/radar_coeffs_csv_small/uscStruct_vals_20241104_212602.csv'
+
