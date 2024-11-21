@@ -18,7 +18,7 @@ model:
     max_layers: 6                 # Maximum number of layers
     layer_size_min: 16           # Minimum units per layer
     layer_size_max: 1024          # Maximum units per layer
-  architecture_penalty: 0.00005
+  architecture_penalty: 0.0000005
 
 dataset:
   num_train: 1000                 # Number of training samples
@@ -29,6 +29,6 @@ training:
   max_epochs: 100                 # Number of epochs for training (use maxiter_adam instead)
   
 paths:
-  label_data_file_path: '/home/houtlaw/iono-net/data/SAR_AF_ML_toyDataset_etc/radar_coeffs_csv_small/compl_ampls_20241104_212602.csv'
-  signal_data_file_path: '/home/houtlaw/iono-net/data/SAR_AF_ML_toyDataset_etc/radar_coeffs_csv_small/uscStruct_vals_20241104_212602.csv'
+  label_data_file_path: '/home/houtlaw/iono-net/data/SAR_AF_ML_toyDataset_etc/radar_coeffs_csv_small/compl_ampls_20241117_203151.csv'
+  signal_data_file_path: '/home/houtlaw/iono-net/data/SAR_AF_ML_toyDataset_etc/radar_coeffs_csv_small/uscStruct_vals_20241117_203151.csv'
 

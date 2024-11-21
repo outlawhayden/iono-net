@@ -34,11 +34,93 @@ function coeffsToCSV
     exportMatrixToCsv(complAmplsMatrix, 'compl_ampls', outputDir);
     exportMatrixToCsv(uscStruct_valsMatrix, 'uscStruct_vals', outputDir);  % Export the new matrix
     
-    % Export dataset.meta.kPs as a table to CSV
-    kPsi = S.dataset.meta.kPsi;  % Extract kPs
-    exportMetaToCsv(kPsi, 'kPsi', outputDir);  % Export kPs as CSV
+    % Export dataset.meta.kPsi as a table to CSV
+    kPsi = S.dataset.meta.kPsi;  % Extract kPsi
+    exportMetaToCsv(kPsi, 'kPsi', outputDir);  % Export kPsi as CSV
     
+    % Export dataset.meta.X, Z, and S as CSV files
+    exportVectorToCsv(S.dataset.meta.X, 'meta_X', outputDir);
+    exportVectorToCsv(S.dataset.meta.Z, 'meta_Z', outputDir);
+    exportVectorToCsv(S.dataset.meta.S, 'meta_S', outputDir);
+
+    % Export dataset.meta.setup to JSON
+    metaSetup = S.dataset.meta.setup;
+    filteredSetup = filterStructFields(metaSetup, {'steps', 'windowFun', 'createPsiImplFun', 'sumFun'});
+    exportSetupToJson(filteredSetup, 'setup', outputDir);
+
     disp 'DONE'
+end
+
+function filteredStruct = filterStructFields(inputStruct, excludeFields)
+    % Remove specified fields from a structure
+    fields = fieldnames(inputStruct);
+    for i = 1:numel(excludeFields)
+        if isfield(inputStruct, excludeFields{i})
+            inputStruct = rmfield(inputStruct, excludeFields{i});
+        end
+    end
+    filteredStruct = inputStruct;
+end
+
+function exportSetupToJson(setupStruct, setupName, outputDir)
+    % Convert the structure to a JSON file
+    jsonStr = jsonencode(setupStruct);
+    
+    % Create filename
+    jsonFname = sprintf('%s_%s.json', setupName, datestr(now, 'yyyymmdd_HHMMSS'));
+    fullFname = fullfile(outputDir, jsonFname);
+    
+    % Write JSON to file
+    fid = fopen(fullFname, 'w');
+    if fid == -1
+        error('Cannot open file for writing: %s', fullFname);
+    end
+    fprintf(fid, '%s', jsonStr);
+    fclose(fid);
+    
+    fprintf('Exported %s to %s\n', setupName, fullFname);
+end
+
+function exportVectorToCsv(vector, vectorName, outputDir)
+    % Convert vector to table
+    T = array2table(vector(:), 'VariableNames', {vectorName});
+    
+    % Create filename
+    csvFname = sprintf('%s_%s.csv', vectorName, datestr(now, 'yyyymmdd_HHMMSS'));
+    fullFname = fullfile(outputDir, csvFname);
+    
+    % Write table to CSV
+    writetable(T, fullFname);
+    
+    fprintf('Exported %s to %s\n', vectorName, fullFname);
+end
+
+function exportMatrixToCsv(matrix, matrixName, outputDir)
+    % Create table for the matrix
+    T = array2table(matrix);
+    
+    % Create filename
+    csvFname = sprintf('%s_%s.csv', matrixName, datestr(now, 'yyyymmdd_HHMMSS'));
+    fullFname = fullfile(outputDir, csvFname);
+    
+    % Write table to CSV
+    writetable(T, fullFname);
+    
+    fprintf('Exported %s matrix to %s\n', matrixName, fullFname);
+end
+
+function exportMetaToCsv(metaData, metaName, outputDir)
+    % Convert meta data to table (assuming kPsi is a vector or matrix)
+    T = array2table(metaData);
+    
+    % Create filename
+    csvFname = sprintf('%s_%s.csv', metaName, datestr(now, 'yyyymmdd_HHMMSS'));
+    fullFname = fullfile(outputDir, csvFname);
+    
+    % Write table to CSV
+    writetable(T, fullFname);
+    
+    fprintf('Exported %s to %s\n', metaName, fullFname);
 end
 
 function [nuStructCol, complAmplsCol, uscStruct_valsCol] = processSeed(stepRefinePow, ionoNharm, seeds, iseed, S)
@@ -58,32 +140,4 @@ function [nuStructCol, complAmplsCol, uscStruct_valsCol] = processSeed(stepRefin
     % Extract uscStruct_vals (values) and convert to a column vector
     uscStruct_vals = record.uscStruct.vals;
     uscStruct_valsCol = uscStruct_vals(:);  % Ensure it's a column
-end
-
-function exportMatrixToCsv(matrix, matrixName, outputDir)
-    % Create table for the matrix
-    T = array2table(matrix);
-    
-    % Create filename
-    csvFname = sprintf('%s_%s.csv', matrixName, datestr(now, 'yyyymmdd_HHMMSS'));
-    fullFname = fullfile(outputDir, csvFname);
-    
-    % Write table to CSV
-    writetable(T, fullFname);
-    
-    fprintf('Exported %s matrix to %s\n', matrixName, fullFname);
-end
-
-function exportMetaToCsv(metaData, metaName, outputDir)
-    % Convert meta data to table (assuming kPs is a vector or matrix)
-    T = array2table(metaData);
-    
-    % Create filename
-    csvFname = sprintf('%s_%s.csv', metaName, datestr(now, 'yyyymmdd_HHMMSS'));
-    fullFname = fullfile(outputDir, csvFname);
-    
-    % Write table to CSV
-    writetable(T, fullFname);
-    
-    fprintf('Exported %s to %s\n', metaName, fullFname);
 end

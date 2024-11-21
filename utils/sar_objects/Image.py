@@ -33,7 +33,8 @@ class Image:
             base = real_signal[mask]
             signal_vals = self.signal[1, mask]
             waveform = np.exp(-1j * np.pi * (base - y) ** 2 / self.F)
-            psi_vals = np.exp(1j * self.psi.calc_psi_cache(y))
+            psi_vals = np.exp(1j * self.psi.calc_psi(y))
+            #psi_vals = np.exp(1j * self.psi.calc_psi_cache(y))
             window = self.window_func(base)
 
             without_psi_heights = waveform * signal_vals * window

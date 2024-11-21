@@ -5,7 +5,7 @@ import numpy as np
 from functools import lru_cache
 from scipy.integrate import trapezoid
 # from Psi import StoredPsi, RecFourierPsi
-from .WindowFuncs import *
+from WindowFuncs import *
 from scipy.signal import find_peaks
 from math import sqrt
 

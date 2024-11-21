@@ -1,5 +1,6 @@
 import optuna
 import os
+from pathlib import Path
 import jax
 import jax.numpy as jnp
 import flax.linen as nn
@@ -12,6 +13,7 @@ import optax
 from model import ConfigurableModel
 from tqdm import tqdm
 import pickle
+import csv
 
 # List available GPU devices
 devices = jax.devices()
@@ -141,24 +143,54 @@ def objective(trial):
     return final_loss
 
 
-
 # Run the Optuna study with parallel trials
 study = optuna.create_study(direction="minimize")
-study.optimize(objective, n_trials=70, n_jobs=num_gpus)
+study.optimize(objective, n_trials=30, n_jobs=num_gpus)
 
 # Save the best trial parameters and loss history to a YAML file
 best_trial = study.best_trial
 params_dict = best_trial.params
 params_dict["minloss"] = best_trial.user_attrs["minloss"]
-params_dict["loss_history"] = best_trial.user_attrs["loss_history"]
+params_dict["architecture"] = [
+    best_trial.params.get(f"layer_{i}_size") for i in range(best_trial.params["num_layers"])
+] + [64, 32]  # Add fixed output layers
 
 datestr = datetime.now().strftime('%Y%m%d_%H%M%S')
+
 output_filename = f'optuna_best_params_{datestr}.yml'
 
+# Save parameters to YAML
 with open(output_filename, 'w') as outfile:
     yaml.dump(params_dict, outfile, default_flow_style=False)
 
 print(f"Best trial parameters saved to {output_filename}")
+
+# Export loss history to CSV
+loss_history_csv_filename = f'loss_history_{datestr}.csv'
+with open(loss_history_csv_filename, 'w') as csvfile:
+    csvwriter = csv.writer(csvfile)
+    csvwriter.writerow(["Epoch", "Loss"])
+    for i, loss in enumerate(best_trial.user_attrs["loss_history"]):
+        csvwriter.writerow([i + 1, loss])
+
+print(f"Loss history saved to {loss_history_csv_filename}")
+
+# Reinitialize the best model
+activation_fn = getattr(jnp, config['model']['trunk_activation'])
+best_architecture = params_dict["architecture"]
+model = ConfigurableModel(architecture=best_architecture, activation_fn=activation_fn)
+
+input_shape = (params_dict["batch_size"], data_matrix_split.shape[1])
+variables = model.init(jax.random.PRNGKey(seed=0), jnp.ones(input_shape), deterministic=True)
+
+# Save model weights to PKL
+weights_filename = f'model_weights_{datestr}.pkl'
+with open(weights_filename, 'wb') as weights_file:
+    pickle.dump(variables['params'], weights_file)
+
+print(f"Model weights saved to {weights_filename}")
+
+# Final best trial summary
 print("Best trial:")
 print(f"  Value: {best_trial.value}")
 print("  Params: ")
