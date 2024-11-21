@@ -9,13 +9,13 @@ import matplotlib.pyplot as plt
 mpl.use("Agg")
 
 ### VARIABLES
-sample_idx = 10
+sample_idx = 1
 
 
 # convert matlab storing of complex numbers to python complex numbers
 def convert_to_complex(s):
     if s == "NaNNaNi":
-        return 0
+        return np.NaN
     else:
         return complex(s.replace('i', 'j'))
     
@@ -34,7 +34,8 @@ ionoNHarm = setup["ionoNharm"]
 xi = setup["xi"]
 windowType = setup["windowType"]
 sumType = setup["sumType"]
-
+#dx = setup["dx"]
+dx = 0.25
 
 
 # get true point scatterer (with speckle)
@@ -72,19 +73,30 @@ for col in psi_coeffs_df.columns:
 psi_coeffs_vals = psi_coeffs_df.iloc[sample_idx,:].values
 print("Psi Coefficient Values:", psi_coeffs_vals)
 
+sin_coeffs = []
+cos_coeffs = []
+
+for j in psi_coeffs_vals:
+    cos_coeffs.append(j.real)
+    sin_coeffs.append(-j.imag)
+
+
 
 fig = plt.figure(figsize=(30, 8))
 plt.plot(x_range, np.absolute(sample_signal_vals[1,:]))
 plt.title("Sample Input Signal")
 plt.savefig('input_signal.png', dpi=300)
 
-fourier_psi = FourierPsi(psi_coeffs_vals, kpsi_values, ionoNHarm)
+rec_fourier_psi = RecFourierPsi(cos_coeffs, sin_coeffs, kpsi_values, ionoNHarm)
+rec_fourier_psi.cache_psi(x_range, F, dx, xi)
 
-image_object = Image(x_range, window_func=rect_window, signal=sample_signal_vals, psi_obj=fourier_psi, F=F)
+image_object = Image(x_range, window_func=rect_window, signal=sample_signal_vals, psi_obj=rec_fourier_psi, F=F)
 
 image_integral = image_object._evaluate_image()
 
 fig = plt.figure(figsize=(30, 8))
-plt.plot(x_range, np.absolute(image_integral))
+
+plt.plot(x_range, true_scatterers, 'orange', lw=3)
+plt.plot(x_range, np.absolute(image_integral),lw = 2)
 plt.title("Image Integral")
 plt.savefig('image_integral.png', dpi=300)
