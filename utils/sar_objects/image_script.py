@@ -4,9 +4,30 @@ from Psi import *
 import json
 import pandas as pd
 import matplotlib as mpl
+import pickle
 import seaborn as sns
 import matplotlib.pyplot as plt
+import os
+import sys
+import jax
+
 mpl.use("Agg")
+
+
+# Get the current directory of the script
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Navigate to the target directory (`/home/houtlaw/iono-net/model`)
+model_dir = os.path.abspath(os.path.join(current_dir, "../../model"))
+
+# Add the model directory to sys.path if it's not already there
+if model_dir not in sys.path:
+    sys.path.append(model_dir)
+
+print(f"Added {model_dir} to sys.path")
+
+# Import the model module
+from model import ConfigurableModel
 
 ### VARIABLES
 sample_idx = 1
@@ -15,9 +36,13 @@ sample_idx = 1
 # convert matlab storing of complex numbers to python complex numbers
 def convert_to_complex(s):
     if s == "NaNNaNi":
-        return np.NaN
+        return 0
     else:
         return complex(s.replace('i', 'j'))
+    
+
+def split_complex_to_imaginary(complex_array):
+    return np.concatenate([complex_array.real, complex_array.imag], axis=-1)
     
 
 # get x axis values
@@ -82,6 +107,7 @@ for j in psi_coeffs_vals:
 
 
 
+
 fig = plt.figure(figsize=(30, 8))
 plt.plot(x_range, np.absolute(sample_signal_vals[1,:]))
 plt.title("Sample Input Signal")
@@ -97,6 +123,71 @@ image_integral = image_object._evaluate_image()
 fig = plt.figure(figsize=(30, 8))
 
 plt.plot(x_range, true_scatterers, 'orange', lw=3)
-plt.plot(x_range, np.absolute(image_integral),lw = 2)
+plt.plot(x_range, np.absolute(image_integral)/dx,lw = 2)
 plt.title("Image Integral")
+plt.legend(["True Point Scatterers", "Image Integral"])
 plt.savefig('image_integral.png', dpi=300)
+
+
+
+
+# get model output coefficients
+with open('/home/houtlaw/iono-net/model/model_weights_20241122_203627.pkl', 'rb') as f:
+    params = pickle.load(f)
+
+# Define the model with the same architecture as used in training
+architecture = [1093,328,963,188,514] 
+activation_fn = jax.numpy.tanh  # Load from config if required
+model = ConfigurableModel(architecture=architecture, activation_fn=activation_fn)
+
+
+# Run inference
+def run_inference(model, params, input_data):
+    output = model.apply({'params': params}, input_data, deterministic=True)
+    return output
+
+model_output = run_inference(model, params, split_complex_to_imaginary(sample_signal_vals[1,:]))
+
+# formatted list of psi complex coefficients
+model_output_complex = model_output[:len(model_output)//2] + 1j*model_output[len(model_output)//2:]
+
+
+print("NN Psi Coeffs:", model_output_complex)  
+
+model_sin_coeffs = []
+model_cos_coeffs = []
+
+for j in model_output_complex:
+    model_cos_coeffs.append(j.real)
+    model_sin_coeffs.append(-j.imag)
+
+
+
+
+
+model_rec_fourier_psi = RecFourierPsi(model_cos_coeffs, model_sin_coeffs, kpsi_values, ionoNHarm)
+model_rec_fourier_psi.cache_psi(x_range, F, dx, xi)
+
+model_image_object = Image(x_range, window_func=rect_window, signal=sample_signal_vals, psi_obj=model_rec_fourier_psi, F=F)
+
+model_image_integral = model_image_object._evaluate_image()
+
+
+
+fig = plt.figure(figsize=(30, 8))
+
+plt.plot(x_range, true_scatterers, 'orange', lw=3)
+plt.plot(x_range, np.absolute(model_image_integral)/dx,lw = 2)
+plt.title("Image Integral (NN)")
+plt.legend(["True Point Scatterers", "Image Integral  (NN)"])
+plt.savefig('neural_image_integral.png', dpi=300)
+
+
+fig = plt.figure(figsize=(30, 8))
+
+plt.plot(x_range, true_scatterers, 'black', lw=1)
+plt.plot(x_range, np.absolute(model_image_integral)/dx, 'red', lw = 6)
+plt.plot(x_range, np.absolute(model_image_integral)/dx, 'blue', lw = 1)
+plt.title("Image Integral (NN)")
+plt.legend(["True Point Scatterers", "Image Integral (Known)", "Image Integral (NN)"])
+plt.savefig('neural_image_integral_combined.png', dpi=300)

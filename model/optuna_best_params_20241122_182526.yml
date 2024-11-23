@@ -1,0 +1,46 @@
+architecture:
+- 1093
+- 328
+- 963
+- 188
+- 514
+- 64
+- 32
+batch_size: 32
+layer_0_size: 1093
+layer_1_size: 328
+layer_2_size: 963
+layer_3_size: 188
+layer_4_size: 514
+learning_rate_gamma: 0.8671506224433652
+learning_rate_initial: 0.0008531634594418989
+minloss: !!python/object/apply:jax._src.array._reconstruct_array
+- !!python/name:numpy.core.multiarray._reconstruct ''
+- !!python/tuple
+  - !!python/name:numpy.ndarray ''
+  - !!python/tuple
+    - 0
+  - !!binary |
+    Yg==
+- !!python/tuple
+  - 1
+  - !!python/tuple []
+  - !!python/object/apply:numpy.dtype
+    args:
+    - f4
+    - false
+    - true
+    state: !!python/tuple
+    - 3
+    - <
+    - null
+    - null
+    - null
+    - -1
+    - -1
+    - 0
+  - false
+  - !!binary |
+    8kmnPA==
+- weak_type: false
+num_layers: 5
