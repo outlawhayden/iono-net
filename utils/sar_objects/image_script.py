@@ -12,6 +12,7 @@ import sys
 import jax
 
 mpl.use("Agg")
+plt.rcParams.update({'font.size': 22})
 
 
 # Get the current directory of the script
@@ -185,9 +186,8 @@ plt.savefig('neural_image_integral.png', dpi=300)
 
 fig = plt.figure(figsize=(30, 8))
 
-plt.plot(x_range, true_scatterers, 'black', lw=1)
 plt.plot(x_range, np.absolute(model_image_integral)/dx, 'red', lw = 6)
 plt.plot(x_range, np.absolute(model_image_integral)/dx, 'blue', lw = 1)
 plt.title("Image Integral (NN)")
-plt.legend(["True Point Scatterers", "Image Integral (Known)", "Image Integral (NN)"])
+plt.legend([ "Image Integral (Known)", "Image Integral (NN)"])
 plt.savefig('neural_image_integral_combined.png', dpi=300)
