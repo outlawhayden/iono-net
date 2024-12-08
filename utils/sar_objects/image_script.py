@@ -176,7 +176,7 @@ model_image_integral = model_image_object._evaluate_image()
 
 
 fig = plt.figure(figsize=(30, 8))
-
+plt.rcParams["figure.figsize"] = (100,100)
 plt.plot(x_range, true_scatterers, 'orange', lw=3)
 plt.plot(x_range, np.absolute(model_image_integral)/dx,lw = 2)
 plt.title("Image Integral (NN)")
@@ -185,7 +185,7 @@ plt.savefig('neural_image_integral.png', dpi=300)
 
 
 fig = plt.figure(figsize=(30, 8))
-
+plt.rcParams["figure.figsize"] = (100,100)
 plt.plot(x_range, np.absolute(model_image_integral)/dx, 'red', lw = 6)
 plt.plot(x_range, np.absolute(model_image_integral)/dx, 'blue', lw = 1)
 plt.title("Image Integral (NN)")
