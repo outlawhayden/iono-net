@@ -133,7 +133,7 @@ plt.savefig('image_integral.png', dpi=300)
 
 
 # get model output coefficients
-with open('/home/houtlaw/iono-net/model/model_weights_20241122_203627.pkl', 'rb') as f:
+with open('/home/houtlaw/iono-net/model/weights/model_weights_20241122_203627.pkl', 'rb') as f:
     params = pickle.load(f)
 
 # Define the model with the same architecture as used in training
@@ -186,7 +186,7 @@ plt.savefig('neural_image_integral.png', dpi=300)
 
 fig = plt.figure(figsize=(30, 8))
 plt.rcParams["figure.figsize"] = (100,100)
-plt.plot(x_range, np.absolute(model_image_integral)/dx, 'red', lw = 6)
+plt.plot(x_range, np.absolute(image_integral)/dx, 'red', lw = 6)
 plt.plot(x_range, np.absolute(model_image_integral)/dx, 'blue', lw = 1)
 plt.title("Image Integral (NN)")
 plt.legend([ "Image Integral (Known)", "Image Integral (NN)"])

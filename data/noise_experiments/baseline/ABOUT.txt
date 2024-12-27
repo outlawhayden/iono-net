@@ -1,0 +1,4 @@
+1000 Samples
+setup.relNoiseCoeff = 0.4
+setup.addSpeckleCoeff = 0.4
+

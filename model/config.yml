@@ -29,6 +29,6 @@ training:
   max_epochs: 100                 # Number of epochs for training (use maxiter_adam instead)
   
 paths:
-  label_data_file_path: '/home/houtlaw/iono-net/data/SAR_AF_ML_toyDataset_etc/radar_coeffs_csv_small/compl_ampls_20241117_203151.csv'
+  label_data_file_path: '/home/houtlaw/iono-net/data/noise_experiments/baseline/compl_ampls_20241227_130838.csv'
   signal_data_file_path: '/home/houtlaw/iono-net/data/SAR_AF_ML_toyDataset_etc/radar_coeffs_csv_small/uscStruct_vals_20241117_203151.csv'
 

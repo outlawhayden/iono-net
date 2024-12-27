@@ -3,8 +3,8 @@ seed: 0
 gpu_id: 0  # GPU ID to use for training
 
 paths:
-  label_data_file_path: '/home/houtlaw/iono-net/data/SAR_AF_ML_toyDataset_etc/radar_coeffs_csv_small/compl_ampls_20241117_203151.csv'  # Path to label data file
-  signal_data_file_path: '/home/houtlaw/iono-net/data/SAR_AF_ML_toyDataset_etc/radar_coeffs_csv_small/uscStruct_vals_20241117_203151.csv'
+  label_data_file_path: '/home/houtlaw/iono-net/data/noise_experiments/more_relnoise/compl_ampls_20241227_131353.csv'  # Path to label data file
+  signal_data_file_path: '/home/houtlaw/iono-net/data/noise_experiments/more_relnoise/uscStruct_vals_20241227_131353.csv'
 
 model:
   architecture: [1093, 328, 963, 188, 514]  # Model architecture
@@ -21,4 +21,4 @@ learning_rate:
   final: 0.00001  # Final learning rate
 
 optimizer:
-  maxiter_adam: 10000  # Maximum number of iterations for Adam optimizer
+  maxiter_adam: 1000  # Maximum number of iterations for Adam optimizer

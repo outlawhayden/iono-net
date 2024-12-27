@@ -1,11 +1,11 @@
 function coeffsToCSV
 
-    seeds.count = 100; % Modify as per original script intent
+    seeds.count = 1000; % Modify as per original script intent
 
     stepRefinePow = 2;  
     ionoNharm = 6; 
     seeds.start = struct('ionosphere', 21, 'clutter', 61, 'PS', 41); 
-    outputDir = 'radar_coeffs_csv_small';  % Directory to save CSV files
+    outputDir = '../noise_experiments/more_both';  % Directory to save CSV files
     if ~exist(outputDir, 'dir')
         mkdir(outputDir);  % Create output directory if it doesn't exist
     end

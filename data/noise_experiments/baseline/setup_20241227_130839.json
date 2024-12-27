@@ -1,0 +1,1 @@
+{"F":100,"ionoNharm":6,"domainLengthInF":3.6,"maxN_PS":15,"PoissonLambda_amplPS":5,"numPsiSamples":7,"xi":0.5,"relNoiseCoeff":0.4,"addSpeckleCoeff":0.4,"ionoAmplOverPi":2,"F_to_lmax":1.5,"windowType":"rect","sumType":"trapz"}

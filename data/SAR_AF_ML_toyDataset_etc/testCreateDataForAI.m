@@ -2,7 +2,7 @@
 function testCreateDataForAI
 
     % data generation size
-    seeds.count = 100;
+    seeds.count = 1000;
 
     stepRefinePow = 2;  
     ionoNharm = 6; 
@@ -33,8 +33,8 @@ function [setup, init_rng_seed, initHarmonicIdx] = createSetupForAI(stepRefinePo
     setup.steps.nu  = refinedStep;     
  
     setup.xi = 0.5; 
-    setup.relNoiseCoeff = 0.4; % 0.4
-    setup.addSpeckleCoeff = 0.4; 
+    setup.relNoiseCoeff = 0.6; % 0.4
+    setup.addSpeckleCoeff = 0.6; % 0.4
   
     % see createSetup_etc in minusI4_BareboneSetup, option  'reconstr_shortscale_rect'
     setup.ionoAmplOverPi = 2; 4; 5; 6; 8; 4; 2; 
@@ -156,6 +156,7 @@ function [psCoord, psAmpl] = create_psCoord_psAmpl(setup)
     rng(setup.rng_seed.PS);  
     
     numPS = randi(setup.maxN_PS + 1) - 1; % we allow it to be 0 PSs
+    %numPS = 1; % one point scatterer for debugging
     if numPS == 0
         psCoord = []; 
         psAmpl = []; 
