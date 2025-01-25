@@ -13,22 +13,13 @@ from tqdm import tqdm
 import pickle
 import csv
 
-
-#### To run the script with nohup: `nohup python train_model.py &` ####
-
-# Redirect stdout to a log file for nohup
-log_filename = "training_log.txt"
-log_file = open(log_filename, "w")
-
-print = lambda *args, **kwargs: __import__('builtins').print(*args, **kwargs, file=log_file, flush=True)
-
 # List available GPU devices
 devices = jax.devices()
 num_gpus = len(devices)
 print(f"Detected {num_gpus} GPU(s): {[d.id for d in devices]}")
 
 # Load configurations
-with open("/home/houtlaw/iono-net/model/config_simple.yaml", "r") as f:
+with open("config_simple.yaml", "r") as f:
     config = yaml.safe_load(f)
 
 # Set GPU device for training
@@ -67,7 +58,7 @@ label_matrix_split = split_complex_to_imaginary(label_matrix)
 data_matrix_split = split_complex_to_imaginary(data_matrix)
 
 dataset = list(zip(data_matrix_split, label_matrix_split))
-print("Dataset Loaded...")
+
 def data_loader(dataset, batch_size, shuffle=True):
     dataset_size = len(dataset)
     indices = np.arange(dataset_size)
@@ -99,25 +90,23 @@ opt = optax.adam(optax.exponential_decay(
 ))
 
 state = train_state.TrainState.create(apply_fn=model.apply, params=variables['params'], tx=opt)
-print("Train State Initialized...")
+
 loss_history = []
 
 # Training loop
-for epoch in range(config['optimizer']['maxiter_adam']):
+for epoch in tqdm(range(config['optimizer']['maxiter_adam']), desc="Training", position=0):
     batch_loss = 0.0
     num_batches = len(dataset) // config['training']['batch_size']
-    with tqdm(total=num_batches, desc=f"Epoch {epoch+1}", file=log_file) as pbar:
-        for batch_signal, batch_coefficients in data_loader(dataset, config['training']['batch_size']):
-            rng_key, subkey = jax.random.split(rng_key)
-            loss, grads = jax.value_and_grad(loss_fn)(
-                state.params, model, batch_signal, batch_coefficients, deterministic=False, rng_key=subkey
-            )
-            state = state.apply_gradients(grads=grads)
-            batch_loss += loss
-            pbar.update(1)
+    for batch_signal, batch_coefficients in data_loader(dataset, config['training']['batch_size']):
+        rng_key, subkey = jax.random.split(rng_key)
+        loss, grads = jax.value_and_grad(loss_fn)(
+            state.params, model, batch_signal, batch_coefficients, deterministic=False, rng_key=subkey
+        )
+        state = state.apply_gradients(grads=grads)
+        batch_loss += loss
     avg_epoch_loss = batch_loss / num_batches
     loss_history.append(avg_epoch_loss.item())
-    print(f"Epoch {epoch+1}, Loss: {avg_epoch_loss}")
+    #print(f"Epoch {epoch+1}, Loss: {avg_epoch_loss}")
 
 # Save model weights
 datestr = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -135,8 +124,3 @@ with open(loss_history_csv_filename, 'w') as csvfile:
         csvwriter.writerow([i + 1, loss])
 
 print(f"Loss history saved to {loss_history_csv_filename}")
-
-# Close the log file
-log_file.close()
-
-

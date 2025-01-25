@@ -3,8 +3,8 @@ seed: 0
 gpu_id: 0  # GPU ID to use for training
 
 paths:
-  label_data_file_path: '/home/houtlaw/iono-net/data/noise_experiments/more_relnoise/compl_ampls_20241227_131353.csv'  # Path to label data file
-  signal_data_file_path: '/home/houtlaw/iono-net/data/noise_experiments/more_relnoise/uscStruct_vals_20241227_131353.csv'
+  label_data_file_path: '/home/houtlaw/iono-net/data/baselines/high_everything/train_compl_ampls_20250124_085444.csv'  # Path to label data file
+  signal_data_file_path: '/home/houtlaw/iono-net/data/baselines/high_everything/train_uscStruct_vals_20250124_085445.csv'
 
 model:
   architecture: [1093, 328, 963, 188, 514]  # Model architecture

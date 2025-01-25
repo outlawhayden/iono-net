@@ -19,3 +19,4 @@
   label_matrix = label_df.applymap(convert_to_complex).to_numpy().T
 /home/houtlaw/iono-net/model/train_model.py:61: FutureWarning: DataFrame.applymap has been deprecated. Use DataFrame.map instead.
   data_matrix = data_df.applymap(convert_to_complex).to_numpy().T
+2025-01-02 10:40:22.251963: W external/xla/xla/service/gpu/nvptx_compiler.cc:930] The NVIDIA driver's CUDA version is 12.4 which is older than the PTX compiler version 12.6.77. Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.

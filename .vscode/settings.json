@@ -1,0 +1,5 @@
+{
+    "python.analysis.extraPaths": [
+        "./utils/sar_objects"
+    ]
+}

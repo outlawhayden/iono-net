@@ -2,7 +2,7 @@
 function testCreateDataForAI
 
     % data generation size
-    seeds.count = 1000;
+    seeds.count = 2000;
 
     stepRefinePow = 2;  
     ionoNharm = 6; 
@@ -33,8 +33,9 @@ function [setup, init_rng_seed, initHarmonicIdx] = createSetupForAI(stepRefinePo
     setup.steps.nu  = refinedStep;     
  
     setup.xi = 0.5; 
-    setup.relNoiseCoeff = 0.6; % 0.4
-    setup.addSpeckleCoeff = 0.6; % 0.4
+    setup.relNoiseCoeff = 0.8; % 0.4
+    setup.addSpeckleCoeff = 0.8; % 0.4
+    setup.minScattererRadius = 5;
   
     % see createSetup_etc in minusI4_BareboneSetup, option  'reconstr_shortscale_rect'
     setup.ionoAmplOverPi = 2; 4; 5; 6; 8; 4; 2; 
@@ -156,21 +157,32 @@ function [psCoord, psAmpl] = create_psCoord_psAmpl(setup)
     rng(setup.rng_seed.PS);  
     
     numPS = randi(setup.maxN_PS + 1) - 1; % we allow it to be 0 PSs
-    %numPS = 1; % one point scatterer for debugging
     if numPS == 0
         psCoord = []; 
         psAmpl = []; 
         return; 
     end
     
-    % restrict PScoord to integer values, dontt allow repeat coords 
+    % restrict PScoord to integer values, don't allow repeat coords
     speckleDomainLims = BareboneUtilsIonoAF.getSpeckleDomainLims(setup); 
     imgDomainLims = speckleDomainLims + setup.F * [1, -1]; 
     assert( (rem(imgDomainLims(1), 1) == 0) && ...
             (rem(imgDomainLims(2), 1) == 0) ); 
     idxCountWithinDomain = diff(imgDomainLims) + 1; 
-    idxSample = sort(randsample(idxCountWithinDomain, numPS));
-    psCoord = imgDomainLims(1) - 1 + idxSample; 
+
+    psCoord = zeros(1, numPS);
+    minRadius = setup.minScattererRadius; % Minimum radius distance
+    
+    for i = 1:numPS
+        isValid = false;
+        while ~isValid
+            candidate = imgDomainLims(1) - 1 + randi(idxCountWithinDomain);
+            if i == 1 || all(abs(candidate - psCoord(1:i-1)) >= minRadius)
+                psCoord(i) = candidate;
+                isValid = true;
+            end
+        end
+    end
     
     % normalize amplitude by 1 here
     if setup.PoissonLambda_amplPS == inf
@@ -182,7 +194,6 @@ function [psCoord, psAmpl] = create_psCoord_psAmpl(setup)
         psAmpl = amplAbs .* exp(1i * phase); 
     end
 end
-    
 
 function nuStructWithSpeckle = addSpeckleToNuStruct(nuStruct, setup)
     rng(setup.rng_seed.clutter);      

@@ -1,11 +1,14 @@
 function coeffsToCSV
 
-    seeds.count = 1000; % Modify as per original script intent
+    seeds.count = 2000; % Modify as per original script intent
+    trainRatio = 0.8;   % Percentage of seeds for training data
+    trainCount = round(seeds.count * trainRatio);
+    testCount = seeds.count - trainCount;
 
     stepRefinePow = 2;  
     ionoNharm = 6; 
     seeds.start = struct('ionosphere', 21, 'clutter', 61, 'PS', 41); 
-    outputDir = '../noise_experiments/more_both';  % Directory to save CSV files
+    outputDir = '/home/houtlaw/iono-net/data/baselines/high_everything';  % Directory to save CSV files
     if ~exist(outputDir, 'dir')
         mkdir(outputDir);  % Create output directory if it doesn't exist
     end
@@ -14,26 +17,42 @@ function coeffsToCSV
     matFname = 'radarSeries.mat';  
     S = load(matFname);  % Load the .mat file only once
     
-    % Initialize matrices to accumulate nuStruct_withSpeckle, compl_ampls, and uscStruct_vals data
-    nuStructMatrix = [];
-    complAmplsMatrix = [];
-    uscStruct_valsMatrix = [];
+    % Initialize matrices for train and test data
+    trainNuStructMatrix = [];
+    trainComplAmplsMatrix = [];
+    trainUscStruct_valsMatrix = [];
+    
+    testNuStructMatrix = [];
+    testComplAmplsMatrix = [];
+    testUscStruct_valsMatrix = [];
 
-    % Loop over seeds and process them
+    % Loop over seeds and split into train and test datasets
     for iseed = 1:seeds.count
         [nuStructCol, complAmplsCol, uscStruct_valsCol] = processSeed(stepRefinePow, ionoNharm, seeds, iseed, S);
-        
-        % Accumulate columns for each seed
-        nuStructMatrix = [nuStructMatrix, nuStructCol]; % Append new column
-        complAmplsMatrix = [complAmplsMatrix, complAmplsCol]; % Append new column
-        uscStruct_valsMatrix = [uscStruct_valsMatrix, uscStruct_valsCol]; % Append new column
+
+        if iseed <= trainCount
+            % Accumulate columns for training set
+            trainNuStructMatrix = [trainNuStructMatrix, nuStructCol]; 
+            trainComplAmplsMatrix = [trainComplAmplsMatrix, complAmplsCol]; 
+            trainUscStruct_valsMatrix = [trainUscStruct_valsMatrix, uscStruct_valsCol];
+        else
+            % Accumulate columns for testing set
+            testNuStructMatrix = [testNuStructMatrix, nuStructCol]; 
+            testComplAmplsMatrix = [testComplAmplsMatrix, complAmplsCol]; 
+            testUscStruct_valsMatrix = [testUscStruct_valsMatrix, uscStruct_valsCol];
+        end
     end
     
-    % Export the matrices to CSV
-    exportMatrixToCsv(nuStructMatrix, 'nuStruct_withSpeckle', outputDir);
-    exportMatrixToCsv(complAmplsMatrix, 'compl_ampls', outputDir);
-    exportMatrixToCsv(uscStruct_valsMatrix, 'uscStruct_vals', outputDir);  % Export the new matrix
-    
+    % Export the training matrices to CSV
+    exportMatrixToCsv(trainNuStructMatrix, 'train_nuStruct_withSpeckle', outputDir);
+    exportMatrixToCsv(trainComplAmplsMatrix, 'train_compl_ampls', outputDir);
+    exportMatrixToCsv(trainUscStruct_valsMatrix, 'train_uscStruct_vals', outputDir);
+
+    % Export the testing matrices to CSV
+    exportMatrixToCsv(testNuStructMatrix, 'test_nuStruct_withSpeckle', outputDir);
+    exportMatrixToCsv(testComplAmplsMatrix, 'test_compl_ampls', outputDir);
+    exportMatrixToCsv(testUscStruct_valsMatrix, 'test_uscStruct_vals', outputDir);
+
     % Export dataset.meta.kPsi as a table to CSV
     kPsi = S.dataset.meta.kPsi;  % Extract kPsi
     exportMetaToCsv(kPsi, 'kPsi', outputDir);  % Export kPsi as CSV
