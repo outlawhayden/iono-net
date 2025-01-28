@@ -14,7 +14,7 @@ import jax
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Navigate to the target directory (`/home/houtlaw/iono-net/model`)
-model_dir = os.path.abspath(os.path.join(current_dir, "../../../../model"))
+model_dir = os.path.abspath(os.path.join(current_dir, "../../model"))
 
 # Add the model directory to sys.path if it's not already there
 if model_dir not in sys.path:
@@ -39,14 +39,14 @@ ISLR_RADIUS = 5
 NUM_ISLR_SAMPLES = 10
 
 # File paths
-DATA_DIR = "/home/houtlaw/iono-net/data/baselines/high_everything"
-X_RANGE_PATH = f"{DATA_DIR}/meta_X_20250124_085447.csv"
-SETUP_PATH = f"{DATA_DIR}/setup_20250124_085447.json"
-SCATTERER_PATH_RELNOISE = f"{DATA_DIR}/test_nuStruct_withSpeckle_20250124_085446.csv"
-SIGNAL_PATH_RELNOISE = f"{DATA_DIR}/test_uscStruct_vals_20250124_085447.csv"
-KPSI_PATH = f"{DATA_DIR}/kPsi_20250124_085447.csv"
-PSI_COEFFS_PATH_RELNOISE = f"{DATA_DIR}/test_compl_ampls_20250124_085446.csv"
-MODEL_WEIGHTS_PATH = f"{DATA_DIR}/model_weights_20250124_094726.pkl"
+DATA_DIR = "/home/houtlaw/iono-net/data/perturbation_experiments/baseline"
+X_RANGE_PATH = f"{DATA_DIR}/meta_X_20250107_122955.csv"
+SETUP_PATH = f"{DATA_DIR}/setup_20250107_122955.json"
+SCATTERER_PATH_RELNOISE = f"{DATA_DIR}/nuStruct_withSpeckle_20250107_122953.csv"
+SIGNAL_PATH_RELNOISE = f"{DATA_DIR}/uscStruct_vals_20250107_122955.csv"
+KPSI_PATH = f"{DATA_DIR}/kPsi_20250107_122955.csv"
+PSI_COEFFS_PATH_RELNOISE = f"{DATA_DIR}/compl_ampls_20250107_122955.csv"
+MODEL_WEIGHTS_PATH = f"{DATA_DIR}/model_weights_20250107_130653.pkl"
 
 # Helper Functions
 def convert_to_complex(s):
