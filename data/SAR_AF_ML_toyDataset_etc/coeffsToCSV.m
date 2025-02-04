@@ -8,7 +8,7 @@ function coeffsToCSV
     stepRefinePow = 2;  
     ionoNharm = 6; 
     seeds.start = struct('ionosphere', 21, 'clutter', 61, 'PS', 41); 
-    outputDir = '/home/houtlaw/iono-net/data/baselines/high_everything';  % Directory to save CSV files
+    outputDir = '/home/houtlaw/iono-net/data/baselines/standard_setup';  % Directory to save CSV files
     if ~exist(outputDir, 'dir')
         mkdir(outputDir);  % Create output directory if it doesn't exist
     end

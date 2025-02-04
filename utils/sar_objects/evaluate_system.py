@@ -1,3 +1,4 @@
+
 # Imports and Setup
 import os
 import sys
@@ -8,6 +9,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 import jax
+from jax import jit
+import jax.numpy as jnp
+import jax.scipy.integrate as integrate
 
 # Custom imports
 # Get the current directory of the script
@@ -24,6 +28,7 @@ print(f"Added {model_dir} to sys.path")
 from Helper import *
 from Image import *
 from Psi import *
+from Optimize import *
 from model import ConfigurableModel
 
 # Matplotlib settings
@@ -32,11 +37,12 @@ rcParams["figure.figsize"] = (30, 8)
 plt.rcParams["savefig.dpi"] = 300
 
 # Parameters
-SAMPLE_IDX = 30
-TRIM_SIZE = 5
+SAMPLE_IDX = 900
 DX = 0.25
-ISLR_RADIUS = 5
-NUM_ISLR_SAMPLES = 10
+ISLR_RADIUS = 5 # min distance between scatterers
+ISLR_RADIUS_RATIO = 0.6 # ratio of radius for sidelobe integral
+ISLR_MAIN_LOBE_WIDTH = 0.75 #fixed main lobe width
+COMPARISON_SAMPLE_SIZE = 10
 
 # File paths
 DATA_DIR = "/home/houtlaw/iono-net/data/perturbation_experiments/baseline"
@@ -50,6 +56,7 @@ MODEL_WEIGHTS_PATH = f"{DATA_DIR}/model_weights_20250107_130653.pkl"
 
 # Helper Functions
 def convert_to_complex(s):
+    s = str(s)
     if s == "NaNNaNi":
         return 0
     return complex(s.replace('i', 'j'))
@@ -63,22 +70,28 @@ def build_psi_values(kpsi, compl_ampls, x):
         val += np.real(compl_ampls[ik] * np.exp(1j * kpsi[ik] * x))
     return val
 
-def compute_islr(image_integral, known_scatterers, x_vals, min_rad, dx):
+def add_plot_subtitle(setup):
+    subtitle = (f"ionoAmplOverPi: {setup['ionoAmplOverPi']}, "
+                f"addSpeckleCoeff: {setup['addSpeckleCoeff']}, "
+                f"relNoiseCoeff: {setup['relNoiseCoeff']}")
+    plt.figtext(0.5, 0.01, subtitle, wrap=True, horizontalalignment='center', fontsize=16)
+
+def compute_islr(image_integral, known_scatterers, x_vals, radius, radius_ratio, main_lobe_width, dx):
     islrs = []
     peaks = [x_vals[i] for i, scatterer in enumerate(known_scatterers) if scatterer > 2]
 
     image_integral = image_integral ** 2
-    total_integral = np.trapz(image_integral, x=x_vals, dx=dx)
+    total_integral = integrate.trapezoid(image_integral, x=x_vals, dx=dx)
 
     for peak in peaks:
-        inner_indices = [i for i, x in enumerate(x_vals) if np.abs(x - peak) <= min_rad]
-        outer_indices = [i for i, x in enumerate(x_vals) if np.abs(x - peak) > min_rad]
+        inner_indices = [i for i, x in enumerate(x_vals) if np.abs(x - peak) <= main_lobe_width]
+        outer_indices = [i for i, x in enumerate(x_vals) if np.abs(x - peak) > main_lobe_width and np.abs(x - peak) <= (radius * radius_ratio)]
 
         inner_peak_bounds = x_vals[inner_indices]
         outer_peak_bounds = x_vals[outer_indices]
 
-        inner_integral = np.trapz(image_integral[inner_indices], x=inner_peak_bounds, dx=dx)
-        outer_integral = np.trapz(image_integral[outer_indices], x=outer_peak_bounds, dx=dx)
+        inner_integral = integrate.trapezoid(image_integral[inner_indices], x=inner_peak_bounds, dx=dx)
+        outer_integral = integrate.trapezoid(image_integral[outer_indices], x=outer_peak_bounds, dx=dx)
 
         islr = 10 * np.log10(outer_integral / inner_integral) if inner_integral != 0 else 0
         islrs.append(islr)
@@ -162,6 +175,7 @@ def main():
     plt.plot(x_range, true_scatterers, 'orange', lw=3)
     plt.plot(x_range_trunc, np.abs(image_integral) / DX, lw=2)
     plt.title("Image Integral")
+    add_plot_subtitle(setup)
     plt.legend(["True Point Scatterers", "Image Integral"])
     plt.savefig("image_integral.png")
 
@@ -195,6 +209,7 @@ def main():
     plt.plot(x_range, true_scatterers, 'orange', lw=3)
     plt.plot(x_range_trunc, np.abs(model_image_integral) / DX, lw=2)
     plt.title("Image Integral (NN) Inference")
+    add_plot_subtitle(setup)
     plt.legend(["True Point Scatterers", "Image Integral (NN)"])
     plt.savefig("neural_image_integral.png")
 
@@ -208,15 +223,16 @@ def main():
     plt.xlabel("x")
     plt.ylabel("Psi")
     plt.title("Psi Values Plot")
+    add_plot_subtitle(setup)
     plt.grid(True)
     plt.legend()
     plt.savefig('psi_comparison.png')
 
     # Compute ISLR
-    islr_avg_nn = compute_islr(np.abs(model_image_integral) / DX, true_scatterers, x_range_trunc, ISLR_RADIUS, DX)
+    islr_avg_nn = compute_islr(np.abs(model_image_integral) / DX, true_scatterers, x_range_trunc, ISLR_RADIUS, ISLR_RADIUS_RATIO, ISLR_MAIN_LOBE_WIDTH, DX)
     print("ISLR Average (NN):", islr_avg_nn)
 
-    islr_avg_grad = compute_islr(np.abs(image_integral) / DX, true_scatterers, x_range_trunc, ISLR_RADIUS, DX)
+    islr_avg_grad = compute_islr(np.abs(image_integral) / DX, true_scatterers, x_range_trunc, ISLR_RADIUS, ISLR_RADIUS_RATIO, ISLR_MAIN_LOBE_WIDTH, DX)
     print("ISLR Average (Classic):", islr_avg_grad)
 
 if __name__ == "__main__":

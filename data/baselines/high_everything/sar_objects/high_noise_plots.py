@@ -33,7 +33,7 @@ plt.rcParams["savefig.dpi"] = 300
 
 # Parameters
 SAMPLE_IDX = 30
-TRIM_SIZE = 5
+TRIM_SIZE = 5 # unused
 DX = 0.25
 ISLR_RADIUS = 5
 NUM_ISLR_SAMPLES = 10

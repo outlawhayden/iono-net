@@ -33,12 +33,12 @@ function [setup, init_rng_seed, initHarmonicIdx] = createSetupForAI(stepRefinePo
     setup.steps.nu  = refinedStep;     
  
     setup.xi = 0.5; 
-    setup.relNoiseCoeff = 0.8; % 0.4
-    setup.addSpeckleCoeff = 0.8; % 0.4
-    setup.minScattererRadius = 5;
+    setup.relNoiseCoeff = 0.4; % 0.4
+    setup.addSpeckleCoeff = 0.4; % 0.4
+    setup.minScattererRadius = 1;
   
     % see createSetup_etc in minusI4_BareboneSetup, option  'reconstr_shortscale_rect'
-    setup.ionoAmplOverPi = 2; 4; 5; 6; 8; 4; 2; 
+    setup.ionoAmplOverPi = 4; 5; 6; 8; 4; 2; 
     setup.F_to_lmax = 1.5; 
     
     setup.windowFun = @(x) ones(size(x));                    setup.windowType = 'rect'; 
