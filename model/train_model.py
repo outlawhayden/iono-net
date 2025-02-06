@@ -59,6 +59,25 @@ data_matrix_split = split_complex_to_imaginary(data_matrix)
 
 dataset = list(zip(data_matrix_split, label_matrix_split))
 
+# Load test dataset if available
+test_dataset = None
+if "test_data_file_path" in config['paths'] and "test_label_file_path" in config['paths']:
+    print("Loading test dataset...")
+    test_label_file_path = config['paths']['test_label_file_path']
+    test_data_file_path = config['paths']['test_data_file_path']
+    
+    test_label_df = pd.read_csv(test_label_file_path, dtype=str)
+    test_data_df = pd.read_csv(test_data_file_path, dtype=str)
+    test_label_matrix = test_label_df.map(convert_to_complex).to_numpy().T
+    test_data_matrix = test_data_df.map(convert_to_complex).to_numpy().T
+    
+    test_label_matrix_split = split_complex_to_imaginary(test_label_matrix)
+    test_data_matrix_split = split_complex_to_imaginary(test_data_matrix)
+    
+    test_dataset = list(zip(test_data_matrix_split, test_label_matrix_split))
+else:
+    print("No test dataset found.")
+
 def data_loader(dataset, batch_size, shuffle=True):
     dataset_size = len(dataset)
     indices = np.arange(dataset_size)
@@ -74,29 +93,45 @@ def data_loader(dataset, batch_size, shuffle=True):
 input_shape = (config['training']['batch_size'], data_matrix_split.shape[1])
 variables = model.init(root_key, jnp.ones(input_shape), deterministic=True)
 
+# L2 regularization weight
+l2_reg_weight = config['training'].get('l2_reg_weight', 1e-4)
+
 def loss_fn(params, model, inputs, true_coeffs, deterministic, rng_key):
     preds = model.apply({'params': params}, inputs, deterministic=deterministic, rngs={'dropout': rng_key})
     preds_real, preds_imag = preds[:, :6], preds[:, 6:]
     true_real, true_imag = true_coeffs[:, :6], true_coeffs[:, 6:]
     loss_real = jnp.mean((preds_real - true_real) ** 2)
     loss_imag = jnp.mean((preds_imag - true_imag) ** 2)
-    return loss_real + loss_imag
+    
+    # L2 Regularization Term
+    l2_loss = sum(jnp.sum(jnp.square(p)) for p in jax.tree_util.tree_leaves(params))
 
-opt = optax.adam(optax.exponential_decay(
-    config['learning_rate']['initial'],
-    config['learning_rate']['step'],
-    config['learning_rate']['gamma'],
-    end_value=config['learning_rate']['final']
-))
+    return loss_real + loss_imag + l2_reg_weight * l2_loss
+
+gradient_clip_value = config['training'].get('gradient_clip_value', 1.0)
+
+opt = optax.chain(
+    optax.clip_by_global_norm(gradient_clip_value),
+    optax.adamw(
+        learning_rate=optax.exponential_decay(
+            config['learning_rate']['initial'],
+            config['learning_rate']['step'],
+            config['learning_rate']['gamma'],
+            end_value=config['learning_rate']['final']
+        ),
+        weight_decay=l2_reg_weight
+    )
+)
 
 state = train_state.TrainState.create(apply_fn=model.apply, params=variables['params'], tx=opt)
 
 loss_history = []
+test_loss_history = []
 
-# Training loop
 for epoch in tqdm(range(config['optimizer']['maxiter_adam']), desc="Training", position=0):
     batch_loss = 0.0
     num_batches = len(dataset) // config['training']['batch_size']
+    
     for batch_signal, batch_coefficients in data_loader(dataset, config['training']['batch_size']):
         rng_key, subkey = jax.random.split(rng_key)
         loss, grads = jax.value_and_grad(loss_fn)(
@@ -104,23 +139,29 @@ for epoch in tqdm(range(config['optimizer']['maxiter_adam']), desc="Training", p
         )
         state = state.apply_gradients(grads=grads)
         batch_loss += loss
+    
     avg_epoch_loss = batch_loss / num_batches
     loss_history.append(avg_epoch_loss.item())
-    #print(f"Epoch {epoch+1}, Loss: {avg_epoch_loss}")
+    
+    # Evaluate test loss if test dataset is available
+    if test_dataset:
+        test_loss = 0.0
+        test_batches = len(test_dataset) // config['training']['batch_size']
+        for test_signal, test_coefficients in data_loader(test_dataset, config['training']['batch_size'], shuffle=False):
+            test_loss += loss_fn(state.params, model, test_signal, test_coefficients, deterministic=True, rng_key=rng_key)
+        avg_test_loss = test_loss / test_batches
+        test_loss_history.append(avg_test_loss.item())
+    else:
+        avg_test_loss = None
 
-# Save model weights
-datestr = datetime.now().strftime('%Y%m%d_%H%M%S')
-weights_filename = f'model_weights_{datestr}.pkl'
-with open(weights_filename, 'wb') as weights_file:
-    pickle.dump(state.params, weights_file)
-print(f"Model weights saved to {weights_filename}")
+    with open("training_losses.csv", "a", newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow([epoch + 1, avg_epoch_loss, avg_test_loss])
+    
+    print(f"Epoch {epoch+1}: Training Loss = {avg_epoch_loss:.6f}, Test Loss = {avg_test_loss:.6f}" if avg_test_loss else f"Epoch {epoch+1}: Training Loss = {avg_epoch_loss:.6f}")
 
-# Export loss history to CSV
-loss_history_csv_filename = f'loss_history_{datestr}.csv'
-with open(loss_history_csv_filename, 'w') as csvfile:
-    csvwriter = csv.writer(csvfile)
-    csvwriter.writerow(["Epoch", "Loss"])
-    for i, loss in enumerate(loss_history):
-        csvwriter.writerow([i + 1, loss])
+# Save model weights to a pickle file
+with open("model_weights.pkl", "wb") as f:
+    pickle.dump(state.params, f)
 
-print(f"Loss history saved to {loss_history_csv_filename}")
+print("Training complete. Model weights saved as 'model_weights.pkl'.")

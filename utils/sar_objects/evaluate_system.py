@@ -37,7 +37,7 @@ rcParams["figure.figsize"] = (30, 8)
 plt.rcParams["savefig.dpi"] = 300
 
 # Parameters
-SAMPLE_IDX = 900
+SAMPLE_IDX = 3
 DX = 0.25
 ISLR_RADIUS = 5 # min distance between scatterers
 ISLR_RADIUS_RATIO = 0.6 # ratio of radius for sidelobe integral
@@ -45,14 +45,14 @@ ISLR_MAIN_LOBE_WIDTH = 0.75 #fixed main lobe width
 COMPARISON_SAMPLE_SIZE = 10
 
 # File paths
-DATA_DIR = "/home/houtlaw/iono-net/data/perturbation_experiments/baseline"
-X_RANGE_PATH = f"{DATA_DIR}/meta_X_20250107_122955.csv"
-SETUP_PATH = f"{DATA_DIR}/setup_20250107_122955.json"
-SCATTERER_PATH_RELNOISE = f"{DATA_DIR}/nuStruct_withSpeckle_20250107_122953.csv"
-SIGNAL_PATH_RELNOISE = f"{DATA_DIR}/uscStruct_vals_20250107_122955.csv"
-KPSI_PATH = f"{DATA_DIR}/kPsi_20250107_122955.csv"
-PSI_COEFFS_PATH_RELNOISE = f"{DATA_DIR}/compl_ampls_20250107_122955.csv"
-MODEL_WEIGHTS_PATH = f"{DATA_DIR}/model_weights_20250107_130653.pkl"
+DATA_DIR = "/home/houtlaw/iono-net/data/baselines/30k_baseline"
+X_RANGE_PATH = f"{DATA_DIR}/meta_X_20250204_132405.csv"
+SETUP_PATH = f"{DATA_DIR}/setup_20250204_132405.json"
+SCATTERER_PATH_RELNOISE = f"{DATA_DIR}/test_nuStruct_withSpeckle_20250204_132350.csv"
+SIGNAL_PATH_RELNOISE = f"{DATA_DIR}/test_uscStruct_vals_20250204_132359.csv"
+KPSI_PATH = f"{DATA_DIR}/kPsi_20250204_132405.csv"
+PSI_COEFFS_PATH_RELNOISE = f"{DATA_DIR}/test_compl_ampls_20250204_132358.csv"
+MODEL_WEIGHTS_PATH = f"{DATA_DIR}/model_weights_20250203_203714.pkl"
 
 # Helper Functions
 def convert_to_complex(s):

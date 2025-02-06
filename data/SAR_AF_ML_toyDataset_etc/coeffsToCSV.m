@@ -1,14 +1,14 @@
 function coeffsToCSV
 
-    seeds.count = 2000; % Modify as per original script intent
-    trainRatio = 0.8;   % Percentage of seeds for training data
+    seeds.count = 10000; % Modify as per original script intent
+    trainRatio = 0.85;   % Percentage of seeds for training data
     trainCount = round(seeds.count * trainRatio);
     testCount = seeds.count - trainCount;
 
     stepRefinePow = 2;  
     ionoNharm = 6; 
     seeds.start = struct('ionosphere', 21, 'clutter', 61, 'PS', 41); 
-    outputDir = '/home/houtlaw/iono-net/data/baselines/standard_setup';  % Directory to save CSV files
+    outputDir = '/home/houtlaw/iono-net/data/baselines/10k_lownoise';  % Directory to save CSV files
     if ~exist(outputDir, 'dir')
         mkdir(outputDir);  % Create output directory if it doesn't exist
     end

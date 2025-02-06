@@ -3,21 +3,25 @@ seed: 0
 gpu_id: 0  # GPU ID to use for training
 
 paths:
-  label_data_file_path: '/home/houtlaw/iono-net/data/baselines/standard_setup/train_compl_ampls_20250203_194502.csv'  # Path to label data file
-  signal_data_file_path: '/home/houtlaw/iono-net/data/baselines/standard_setup/train_uscStruct_vals_20250203_194502.csv'
+  label_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/train_compl_ampls_20250206_104902.csv'  # Path to label data file
+  signal_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/test_uscStruct_vals_20250206_104913.csv'
+
+  test_label_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/test_compl_ampls_20250206_104913.csv'
+  test_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/test_uscStruct_vals_20250206_104913.csv'
 
 model:
-  architecture: [1093, 328, 963, 188, 514]  # Model architecture
+  architecture: [60,60,60,60]  # Model architecture
   activation: tanh  # Activation function (e.g., relu, tanh, sigmoid)
 
 training:
-  batch_size: 32  # Batch size
-  max_epochs: 50  # Maximum number of epochs
+  batch_size: 64  # Batch size
+  gradient_clip_value: 0.1 # Gradient clipping value
+  l2_reg_weight: 0.0003
 
 learning_rate:
-  initial: 0.003  # Initial learning rate
-  gamma: 0.95  # Learning rate decay factor
-  step: 2000  # Step size for learning rate decay
+  initial: 0.0003  # Initial learning rate
+  gamma: 1.5  # Learning rate decay factor
+  step: 200 # Step size for learning rate decay
   final: 0.00001  # Final learning rate
 
 optimizer:

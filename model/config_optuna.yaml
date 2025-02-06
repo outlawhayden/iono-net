@@ -1,0 +1,15 @@
+seed: 0
+gpu_id: 0
+
+paths:
+  label_data_file_path: '/home/houtlaw/iono-net/data/baselines/standard_setup/train_compl_ampls_20250203_194502.csv'
+  signal_data_file_path: '/home/houtlaw/iono-net/data/baselines/standard_setup/train_uscStruct_vals_20250203_194502.csv'
+  test_label_file_path: '/home/houtlaw/iono-net/data/baselines/standard_setup/test_compl_ampls_20250203_194504.csv'
+  test_data_file_path: '/home/houtlaw/iono-net/data/baselines/standard_setup/test_uscStruct_vals_20250203_194504.csv'
+
+learning_rate:
+  final: 0.00001
+
+optimizer:
+  maxiter_adam: 100
+  step: 200
