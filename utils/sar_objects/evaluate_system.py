@@ -45,14 +45,14 @@ ISLR_MAIN_LOBE_WIDTH = 0.75 #fixed main lobe width
 COMPARISON_SAMPLE_SIZE = 10
 
 # File paths
-DATA_DIR = "/home/houtlaw/iono-net/data/baselines/30k_baseline"
-X_RANGE_PATH = f"{DATA_DIR}/meta_X_20250204_132405.csv"
-SETUP_PATH = f"{DATA_DIR}/setup_20250204_132405.json"
-SCATTERER_PATH_RELNOISE = f"{DATA_DIR}/test_nuStruct_withSpeckle_20250204_132350.csv"
-SIGNAL_PATH_RELNOISE = f"{DATA_DIR}/test_uscStruct_vals_20250204_132359.csv"
-KPSI_PATH = f"{DATA_DIR}/kPsi_20250204_132405.csv"
-PSI_COEFFS_PATH_RELNOISE = f"{DATA_DIR}/test_compl_ampls_20250204_132358.csv"
-MODEL_WEIGHTS_PATH = f"{DATA_DIR}/model_weights_20250203_203714.pkl"
+DATA_DIR = "/home/houtlaw/iono-net/data/old_datasets/no_noise_dataset"
+X_RANGE_PATH = f"{DATA_DIR}/meta_X_20250201_150508.csv"
+SETUP_PATH = f"{DATA_DIR}/setup_20250201_150508.json"
+SCATTERER_PATH_RELNOISE = f"{DATA_DIR}/test_nuStruct_withSpeckle_20250201_150507.csv"
+SIGNAL_PATH_RELNOISE = f"{DATA_DIR}/test_uscStruct_vals_20250201_150508.csv"
+KPSI_PATH = f"{DATA_DIR}/kPsi_20250201_150508.csv"
+PSI_COEFFS_PATH_RELNOISE = f"{DATA_DIR}/test_compl_ampls_20250201_150508.csv"
+MODEL_WEIGHTS_PATH = f"{DATA_DIR}/model_weights_20250203_132621.pkl"
 
 # Helper Functions
 def convert_to_complex(s):
@@ -125,6 +125,59 @@ def load_data():
 
     return x_range, setup, true_scatterers, signal_vals, kpsi_values, psi_coeffs_vals
 
+
+def evaluate_image(domain, window_func, signal, cos_coeffs, sin_coeffs, wavenums, Nharmonics, F, dx, xi, rec_fourier_psi):
+    """
+    Evaluate the image integral for the given domain, window function, signal, and parameters.
+    
+    Parameters:
+        domain (array): The domain over which to evaluate the image.
+        window_func (function): Windowing function applied to the signal.
+        signal (ndarray): 2D array where signal[0, :] is the real signal and signal[1, :] is the signal values.
+        cos_coeffs (array): Cosine coefficients for the Psi function.
+        sin_coeffs (array): Sine coefficients for the Psi function.
+        wavenums (array): Array of wavenumbers for the Psi function.
+        Nharmonics (int): Number of harmonics for Psi.
+        F (float): Parameter for the integration range.
+        dx (float): Sampling interval for the domain.
+        xi (float): Parameter for the s-arr calculation in Psi.
+    
+    Returns:
+        ndarray: The evaluated image integral values.
+    """
+    real_signal = np.real(signal[0, :])
+    imag_val = np.empty_like(signal[1, :], dtype='complex128')
+
+    def calc_sarr_linear(xarr, y, xi):
+        """Calculate s-arr values linearly."""
+        return (xarr - y) / xi
+
+    def calc_psi_cache(base, y, cos_coeffs, sin_coeffs, wavenums, xi):
+        """Cache psi values for a given y."""
+        sarr = (base - y) / xi  # Calculate sarr directly using the base array
+        psi_vals = np.real(np.sum(
+            cos_coeffs * np.cos(np.outer(sarr, wavenums)) +
+            sin_coeffs * np.sin(np.outer(sarr, wavenums)),
+            axis=1
+        ))
+        return psi_vals
+
+    for yidx, y in enumerate(domain):
+        x0 = max(real_signal[0], y - F / 2)
+        x1 = min(real_signal[-1], y + F / 2)
+        mask = (real_signal >= x0) & (real_signal <= x1)
+
+        base = real_signal[mask]
+        signal_vals = signal[1, mask]
+        waveform = np.exp(-1j * np.pi * (base - y) ** 2 / F)
+        psi_vals = np.exp(1j * calc_psi_cache(base, y, cos_coeffs, sin_coeffs, wavenums, xi))
+        window = window_func(base)
+
+        heights = waveform * signal_vals * window * psi_vals
+        imag_val[yidx] = np.trapz(heights, base, dx) / F
+
+    return imag_val
+
 def main():
     # Load data
     x_range, setup, true_scatterers, signal_vals, kpsi_values, psi_coeffs_vals = load_data()
@@ -178,6 +231,18 @@ def main():
     add_plot_subtitle(setup)
     plt.legend(["True Point Scatterers", "Image Integral"])
     plt.savefig("image_integral.png")
+
+
+    image_compact = evaluate_image(x_range_trunc, rect_window, signal_vals_trunc, cos_coeffs, sin_coeffs, kpsi_values, ionoNHarm, F, DX, xi,rec_fourier_psi)
+    plt.figure()
+    plt.plot(x_range_trunc, np.abs(image_integral)/DX, lw = 2)
+    plt.plot(x_range_trunc, np.abs(image_compact)/DX, lw = 2)
+    plt.title("Class-based vs Direct Image Integral")
+    plt.legend(['Image Integral', 'Compact Image Integral'])
+    plt.savefig("compact_image_integral.png")
+
+    
+    
 
     # Load model weights
     with open(MODEL_WEIGHTS_PATH, 'rb') as f:

@@ -9,20 +9,26 @@ paths:
   test_label_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/test_compl_ampls_20250206_104913.csv'
   test_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/test_uscStruct_vals_20250206_104913.csv'
 
+  x_range_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/meta_X_20250206_104914.csv'
+  setup_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/setup_20250206_104914.json'
+  kpsi_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/kPsi_20250206_104914.csv'
+
 model:
-  architecture: [60,60,60,60]  # Model architecture
+  architecture: [200,200,200,200,200,200,200]  # Model architecture
   activation: tanh  # Activation function (e.g., relu, tanh, sigmoid)
 
 training:
   batch_size: 64  # Batch size
-  gradient_clip_value: 0.1 # Gradient clipping value
-  l2_reg_weight: 0.0003
+  gradient_clip_value: 0.0001 # Gradient clipping value
+  l2_reg_weight: 0.3
+  l4_freq: 10 # calculate l4 cost every 10 iterations
+  l4_weight: 0.3 # weight for l4 cost
 
 learning_rate:
-  initial: 0.0003  # Initial learning rate
+  initial: 0.00003  # Initial learning rate
   gamma: 1.5  # Learning rate decay factor
-  step: 200 # Step size for learning rate decay
+  step: 20 # Step size for learning rate decay
   final: 0.00001  # Final learning rate
 
 optimizer:
-  maxiter_adam: 1000  # Maximum number of iterations for Adam optimizer
+  maxiter_adam: 3000  # Maximum number of iterations for Adam optimizer

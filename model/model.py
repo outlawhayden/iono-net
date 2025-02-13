@@ -4,7 +4,7 @@ import jax.numpy as jnp
 class ConfigurableModel(nn.Module):
     architecture: list
     activation_fn: callable
-    dropout_rate: float = 0.02
+    dropout_rate: float = 0.2
 
     @nn.compact
     def __call__(self, x, deterministic: bool):

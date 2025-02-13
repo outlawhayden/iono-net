@@ -29,13 +29,22 @@ class Image:
         for yidx, y in enumerate(self.domain):
             x0 = max(real_signal[0], y - self.F / 2)
             x1 = min(real_signal[-1], y + self.F / 2)
+            print(x0, x1)
             mask = (real_signal >= x0) & (real_signal <= x1)
-
+            print(real_signal)
             base = real_signal[mask]
+            print(base.shape)
             signal_vals = self.signal[1, mask]
+            print(signal_vals.shape)
+            print("----")
             waveform = np.exp(-1j * np.pi * (base - y) ** 2 / self.F)
             psi_vals = np.exp(1j * self.psi.calc_psi_cache(y))
             window = self.window_func(base)
+
+
+            print("waveform.shape:", waveform.shape)
+            print("signal_vals.shape:", signal_vals.shape)
+            print("window.shape:", window.shape)
 
             without_psi_heights = waveform * signal_vals * window
             self.integrand_cache[y] = without_psi_heights
