@@ -22,34 +22,34 @@ class Image:
 
     def _evaluate_image(self):
         """Precompute the image integral for all points using the given domain."""
-        print("Signal shape:", self.signal.shape)
+        #print("Signal shape:", self.signal.shape)
         real_signal = np.real(self.signal[0, :])
         imag_val = np.empty_like(self.signal[1, :], dtype='complex128')
 
         for yidx, y in enumerate(self.domain):
             x0 = max(real_signal[0], y - self.F / 2)
             x1 = min(real_signal[-1], y + self.F / 2)
-            print(x0, x1)
+            #print(x0, x1)
             mask = (real_signal >= x0) & (real_signal <= x1)
-            print(real_signal)
+            #print(real_signal)
             base = real_signal[mask]
-            print(base.shape)
+            #print(base.shape)
             signal_vals = self.signal[1, mask]
-            print(signal_vals.shape)
-            print("----")
+            #print(signal_vals.shape)
+            #print("----")
             waveform = np.exp(-1j * np.pi * (base - y) ** 2 / self.F)
             psi_vals = np.exp(1j * self.psi.calc_psi_cache(y))
             window = self.window_func(base)
 
 
-            print("waveform.shape:", waveform.shape)
-            print("signal_vals.shape:", signal_vals.shape)
-            print("window.shape:", window.shape)
+            #print("waveform.shape:", waveform.shape)
+           # print("signal_vals.shape:", signal_vals.shape)
+            #print("window.shape:", window.shape)
 
             without_psi_heights = waveform * signal_vals * window
             self.integrand_cache[y] = without_psi_heights
-            print("without_psi_heights.shaoe:", without_psi_heights.shape)
-            print("psi_vals.shape:", psi_vals.shape)
+            #print("without_psi_heights.shaoe:", without_psi_heights.shape)
+            #print("psi_vals.shape:", psi_vals.shape)
             heights = without_psi_heights * psi_vals
 
             imag_val[yidx] = np.trapz(heights, base, self.dx) / self.F

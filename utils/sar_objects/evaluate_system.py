@@ -37,7 +37,7 @@ rcParams["figure.figsize"] = (30, 8)
 plt.rcParams["savefig.dpi"] = 300
 
 # Parameters
-SAMPLE_IDX = 3
+SAMPLE_IDX = 20
 DX = 0.25
 ISLR_RADIUS = 5 # min distance between scatterers
 ISLR_RADIUS_RATIO = 0.6 # ratio of radius for sidelobe integral
@@ -45,14 +45,14 @@ ISLR_MAIN_LOBE_WIDTH = 0.75 #fixed main lobe width
 COMPARISON_SAMPLE_SIZE = 10
 
 # File paths
-DATA_DIR = "/home/houtlaw/iono-net/data/old_datasets/no_noise_dataset"
-X_RANGE_PATH = f"{DATA_DIR}/meta_X_20250201_150508.csv"
-SETUP_PATH = f"{DATA_DIR}/setup_20250201_150508.json"
-SCATTERER_PATH_RELNOISE = f"{DATA_DIR}/test_nuStruct_withSpeckle_20250201_150507.csv"
-SIGNAL_PATH_RELNOISE = f"{DATA_DIR}/test_uscStruct_vals_20250201_150508.csv"
-KPSI_PATH = f"{DATA_DIR}/kPsi_20250201_150508.csv"
-PSI_COEFFS_PATH_RELNOISE = f"{DATA_DIR}/test_compl_ampls_20250201_150508.csv"
-MODEL_WEIGHTS_PATH = f"{DATA_DIR}/model_weights_20250203_132621.pkl"
+DATA_DIR = "/home/houtlaw/iono-net/data/baselines/10k_lownoise"
+X_RANGE_PATH = f"{DATA_DIR}/meta_X_20250206_104914.csv"
+SETUP_PATH = f"{DATA_DIR}/setup_20250206_104914.json"
+SCATTERER_PATH_RELNOISE = f"{DATA_DIR}/test_nuStruct_withSpeckle_20250206_104911.csv"
+SIGNAL_PATH_RELNOISE = f"{DATA_DIR}/test_uscStruct_vals_20250206_104913.csv"
+KPSI_PATH = f"{DATA_DIR}/kPsi_20250206_104914.csv"
+PSI_COEFFS_PATH_RELNOISE = f"{DATA_DIR}/test_compl_ampls_20250206_104913.csv"
+MODEL_WEIGHTS_PATH = "/home/houtlaw/iono-net/model/model_weights.pkl"
 
 # Helper Functions
 def convert_to_complex(s):
@@ -232,16 +232,6 @@ def main():
     plt.legend(["True Point Scatterers", "Image Integral"])
     plt.savefig("image_integral.png")
 
-
-    image_compact = evaluate_image(x_range_trunc, rect_window, signal_vals_trunc, cos_coeffs, sin_coeffs, kpsi_values, ionoNHarm, F, DX, xi,rec_fourier_psi)
-    plt.figure()
-    plt.plot(x_range_trunc, np.abs(image_integral)/DX, lw = 2)
-    plt.plot(x_range_trunc, np.abs(image_compact)/DX, lw = 2)
-    plt.title("Class-based vs Direct Image Integral")
-    plt.legend(['Image Integral', 'Compact Image Integral'])
-    plt.savefig("compact_image_integral.png")
-
-    
     
 
     # Load model weights
@@ -249,7 +239,7 @@ def main():
         params = pickle.load(f)
 
     # Define model
-    architecture = [1093, 328, 963, 188, 514]
+    architecture = [400,400,400,400,400,400,400,400]
     model = ConfigurableModel(architecture=architecture, activation_fn=jax.numpy.tanh)
 
     # Run inference on the trimmed signal

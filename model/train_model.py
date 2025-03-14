@@ -20,6 +20,8 @@ from Optimize import *
 
 
 os.environ["JAX_TRACEBACK_FILTERING"] = "off"
+cached_weights_path = "model_weights.pkl"
+
 
 # List available GPU devices
 devices = jax.devices()
@@ -126,12 +128,14 @@ variables = model.init(root_key, jnp.ones(input_shape), deterministic=True)
 # L2 regularization weight
 l2_reg_weight = config['training'].get('l2_reg_weight', 1e-4)
 l4_reg_weight = config['training'].get('l4_reg_weight', 1e-3)
+fourier_d1_weight = config['training'].get('fourier_d1_weight', 1e-3)
+fourier_d2_weight = config['training'].get('fourier_d2_weight', 1e-3)
 
 def calculate_l4_norm(x_range, signal_vals, preds_real, preds_imag, kpsi_values, ionoNHarm, F, DX, xi, windowFunc = rect_window):
     signal_vals = np.asarray(jax.lax.stop_gradient(signal_vals))
     signal_vals = signal_vals[:1441] +  signal_vals[1441:] * 1j
     signal_vals = (signal_vals[4*zero_pad: -4*zero_pad])
-    print("signal val shaped", signal_vals.shape)
+    #print("signal val shaped", signal_vals.shape)
 
     preds_real = np.asarray(jax.lax.stop_gradient(preds_real))
     preds_imag = np.asarray(jax.lax.stop_gradient(preds_imag))
@@ -152,14 +156,21 @@ def loss_fn(params, model, inputs, true_coeffs, deterministic, rng_key, ionoNHar
     preds = model.apply({'params': params}, inputs, deterministic=deterministic, rngs={'dropout': rng_key})
     preds_real, preds_imag = preds[:, :6], preds[:, 6:]
     true_real, true_imag = true_coeffs[:, :6], true_coeffs[:, 6:]
-    loss_real = jnp.mean((preds_real - true_real) ** 2)
-    loss_imag = jnp.mean((preds_imag - true_imag) ** 2)
+    real_diffs = preds_real - true_real
+    imag_diffs = preds_imag - true_imag
+    
+    direct_loss = jnp.sqrt(jnp.sum(jnp.array([(real_diffs[:, i]**2 + imag_diffs[:, i]**2) for i in range(6)])))
+    d1_loss = jnp.sqrt(jnp.sum(jnp.array([(i ** 2) *(real_diffs[:, i]**2 + imag_diffs[:, i]**2) for i in range(6)])))
+    d2_loss = jnp.sqrt(jnp.sum(jnp.array([(i ** 4) *(real_diffs[:, i]**2 + imag_diffs[:, i]**2) for i in range(6)])))
+
+
+
     l2_loss = sum(jnp.sum(jnp.square(p)) for p in jax.tree_util.tree_leaves(params))
     if add_l4:
         loss_l4 = calculate_l4_norm(x_range, inputs[0,:], preds_real[0,:], preds_imag[0,:], kpsi_values, ionoNHarm, F, dx, xi)
     else:
         loss_l4 = 0.0
-    return loss_real + loss_imag + l2_reg_weight * l2_loss + l4_reg_weight * loss_l4
+    return direct_loss + fourier_d1_weight * d1_loss + fourier_d2_weight * d2_loss + l2_reg_weight * l2_loss + l4_reg_weight * loss_l4
 
 gradient_clip_value = config['training'].get('gradient_clip_value', 1.0)
 
@@ -176,8 +187,15 @@ opt = optax.chain(
     )
 )
 
-state = train_state.TrainState.create(apply_fn=model.apply, params=variables['params'], tx=opt)
-
+if os.path.exists(cached_weights_path):
+    print("Loading saved model weights...")
+    with open(cached_weights_path, "rb") as f:
+        loaded_params = pickle.load(f)
+    state = train_state.TrainState.create(apply_fn=model.apply, params=loaded_params, tx=opt)
+    print("Model weights loaded successfully.")
+else:
+    state = train_state.TrainState.create(apply_fn=model.apply, params=variables['params'], tx=opt)
+    print("No saved weights found. Training from scratch.")
 loss_history = []
 test_loss_history = []
 
