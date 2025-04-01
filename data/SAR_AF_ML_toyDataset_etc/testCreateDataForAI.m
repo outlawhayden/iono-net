@@ -2,10 +2,11 @@
 function testCreateDataForAI
 
     % data generation size
-    seeds.count = 10000;
+    seeds.count = 5000;
 
     stepRefinePow = 2;  
-    ionoNharm = 6; 
+    %ionoNharm = 6; 
+    ionoNharm = 1; %% CHANGED TO SINGLETON
     seeds.start = struct('ionosphere', 21, 'clutter', 61, 'PS', 41); 
     outputMatfname = 'radarSeries.mat'; 
     createDataForRangeOfSeeds(stepRefinePow, ionoNharm, seeds, outputMatfname); 
@@ -228,8 +229,11 @@ function compl_ampls = createCustomPsiComplAmpls(setup, initHarmonicIdx)
     rng(setup.rng_seed.ionosphere);        
     phases = 2 * pi * rand(setup.ionoNharm, 1); 
     abs_ampls = createScaledAmplsAbs(setup, initHarmonicIdx);
-    compl_ampls = abs_ampls .* exp(1i * phases);
+    compl_ampls = abs_ampls % changed to ignore phases for now
+    %compl_ampls = abs_ampls .* exp(1i * phases);
 end
+
+
 
 function abs_ampls = createScaledAmplsAbs(setup, initHarmonicIdx)
     ampls_norm = createCustomAmplsNorm(setup, initHarmonicIdx); 

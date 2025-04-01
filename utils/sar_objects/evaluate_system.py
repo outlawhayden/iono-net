@@ -37,7 +37,7 @@ rcParams["figure.figsize"] = (30, 8)
 plt.rcParams["savefig.dpi"] = 300
 
 # Parameters
-SAMPLE_IDX = 20
+SAMPLE_IDX = 2
 DX = 0.25
 ISLR_RADIUS = 5 # min distance between scatterers
 ISLR_RADIUS_RATIO = 0.6 # ratio of radius for sidelobe integral
@@ -52,7 +52,7 @@ SCATTERER_PATH_RELNOISE = f"{DATA_DIR}/test_nuStruct_withSpeckle_20250206_104911
 SIGNAL_PATH_RELNOISE = f"{DATA_DIR}/test_uscStruct_vals_20250206_104913.csv"
 KPSI_PATH = f"{DATA_DIR}/kPsi_20250206_104914.csv"
 PSI_COEFFS_PATH_RELNOISE = f"{DATA_DIR}/test_compl_ampls_20250206_104913.csv"
-MODEL_WEIGHTS_PATH = "/home/houtlaw/iono-net/model/model_weights.pkl"
+MODEL_WEIGHTS_PATH = "/home/houtlaw/iono-net/data/architecture_experiments/10k_400_6_mar_25/model_weights.pkl"
 
 # Helper Functions
 def convert_to_complex(s):
@@ -126,7 +126,7 @@ def load_data():
     return x_range, setup, true_scatterers, signal_vals, kpsi_values, psi_coeffs_vals
 
 
-def evaluate_image(domain, window_func, signal, cos_coeffs, sin_coeffs, wavenums, Nharmonics, F, dx, xi, rec_fourier_psi):
+def evaluate_image(domain, window_func, signal, cos_coeffs, sin_coeffs, wavenums, F, dx, xi):
     """
     Evaluate the image integral for the given domain, window function, signal, and parameters.
     
@@ -154,7 +154,7 @@ def evaluate_image(domain, window_func, signal, cos_coeffs, sin_coeffs, wavenums
 
     def calc_psi_cache(base, y, cos_coeffs, sin_coeffs, wavenums, xi):
         """Cache psi values for a given y."""
-        sarr = (base - y) / xi  # Calculate sarr directly using the base array
+        sarr =  xi * base + (1 - xi) * y  # Calculate sarr directly using the base array
         psi_vals = np.real(np.sum(
             cos_coeffs * np.cos(np.outer(sarr, wavenums)) +
             sin_coeffs * np.sin(np.outer(sarr, wavenums)),

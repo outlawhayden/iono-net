@@ -1,6 +1,7 @@
 import os
 import jax
 import jax.numpy as jnp
+from jax import vmap
 import flax.linen as nn
 import numpy as np
 import pandas as pd
@@ -128,29 +129,50 @@ variables = model.init(root_key, jnp.ones(input_shape), deterministic=True)
 # L2 regularization weight
 l2_reg_weight = config['training'].get('l2_reg_weight', 1e-4)
 l4_reg_weight = config['training'].get('l4_reg_weight', 1e-3)
+fourier_weight = config['training'].get('fourier_weight', 1e-3)
 fourier_d1_weight = config['training'].get('fourier_d1_weight', 1e-3)
 fourier_d2_weight = config['training'].get('fourier_d2_weight', 1e-3)
 
-def calculate_l4_norm(x_range, signal_vals, preds_real, preds_imag, kpsi_values, ionoNHarm, F, DX, xi, windowFunc = rect_window):
-    signal_vals = np.asarray(jax.lax.stop_gradient(signal_vals))
-    signal_vals = signal_vals[:1441] +  signal_vals[1441:] * 1j
-    signal_vals = (signal_vals[4*zero_pad: -4*zero_pad])
-    #print("signal val shaped", signal_vals.shape)
+def calculate_l4_norm(x_range, signal_vals, preds_real, preds_imag, kpsi_values, ionoNHarm, F, DX, xi, zero_pad):
+    # Trim and convert signal
+    signal_complex = signal_vals[:1441] + 1j * signal_vals[1441:]
+    signal_trimmed = signal_complex[4 * zero_pad : -4 * zero_pad]
+    x_trimmed = x_range[4 * zero_pad : -4 * zero_pad]
 
-    preds_real = np.asarray(jax.lax.stop_gradient(preds_real))
-    preds_imag = np.asarray(jax.lax.stop_gradient(preds_imag))
+    # Set up base domain for evaluation
+    window_size = int(F / DX) + 1
+    offsets = jnp.linspace(-F / 2, F / 2, window_size)
 
-    x_range =  np.transpose(x_range[4*zero_pad: -4*zero_pad])
-    
-    rec_fourier_psi = RecFourierPsi(preds_real, -1 * preds_imag, kpsi_values, ionoNHarm)
-    rec_fourier_psi.cache_psi(x_range, F, DX, xi)
+    def evaluate_single(y):
+        base = y + offsets
 
-    signal_vals = np.column_stack((x_range, signal_vals)).T
+        # Interpolate real/imag parts of signal
+        real_interp = jnp.interp(base, x_trimmed, jnp.real(signal_trimmed))
+        imag_interp = jnp.interp(base, x_trimmed, jnp.imag(signal_trimmed))
+        signal_interp = real_interp + 1j * imag_interp
 
-    # Create image object
-    image_object = Image(x_range, window_func=rect_window, signal=signal_vals, psi_obj=rec_fourier_psi, F=F)
-    image_integral = image_object._evaluate_image()
-    return jnp.sum(jnp.abs(image_integral) ** 4)
+        # Uniform window
+        window = jnp.ones_like(base)
+
+        # SAR waveform
+        waveform = jnp.exp(-1j * jnp.pi * (base - y) ** 2 / F)
+
+        # Phase modulation (psi)
+        sarr = xi * base + (1 - xi) * y
+        psi_cos = jnp.sum(preds_real[:, None] * jnp.cos(jnp.outer(sarr, kpsi_values).T), axis=0)
+        psi_sin = jnp.sum(preds_imag[:, None] * jnp.sin(jnp.outer(sarr, kpsi_values).T), axis=0)
+        psi_vals = jnp.exp(1j * (psi_cos + psi_sin))
+
+        integrand = waveform * signal_interp * window * psi_vals
+        integral_real = jnp.trapezoid(jnp.real(integrand), dx=DX)
+        integral_imag = jnp.trapezoid(jnp.imag(integrand), dx=DX)
+
+        return (integral_real + 1j * integral_imag) / F
+
+    image_vals = vmap(evaluate_single)(x_trimmed)
+    return jnp.sum(jnp.abs(image_vals) ** 4)
+
+
 
 def loss_fn(params, model, inputs, true_coeffs, deterministic, rng_key, ionoNHarm, kpsi_values, add_l4):
     preds = model.apply({'params': params}, inputs, deterministic=deterministic, rngs={'dropout': rng_key})
@@ -167,10 +189,33 @@ def loss_fn(params, model, inputs, true_coeffs, deterministic, rng_key, ionoNHar
 
     l2_loss = sum(jnp.sum(jnp.square(p)) for p in jax.tree_util.tree_leaves(params))
     if add_l4:
-        loss_l4 = calculate_l4_norm(x_range, inputs[0,:], preds_real[0,:], preds_imag[0,:], kpsi_values, ionoNHarm, F, dx, xi)
+        # Select random sample from batch for L4 loss
+        batch_size = inputs.shape[0]
+        batch_size = inputs.shape[0]
+        num_l4_samples = 4  # ← pick however many you want to average over
+        sample_indices = jax.random.choice(rng_key, batch_size, shape=(num_l4_samples,), replace=False)
+
+        def compute_single_l4(index):
+            signal_sample = inputs[index]
+            preds_real_sample = preds_real[index]
+            preds_imag_sample = preds_imag[index]
+            return calculate_l4_norm(
+                x_range,
+                signal_sample,
+                preds_real_sample,
+                preds_imag_sample,
+                kpsi_values,
+                ionoNHarm,
+                F,
+                dx,
+                xi,
+                zero_pad
+            )
+
+        loss_l4 = jnp.mean(jax.vmap(compute_single_l4)(sample_indices))
     else:
         loss_l4 = 0.0
-    return direct_loss + fourier_d1_weight * d1_loss + fourier_d2_weight * d2_loss + l2_reg_weight * l2_loss + l4_reg_weight * loss_l4
+    return fourier_weight * direct_loss + fourier_d1_weight * d1_loss + fourier_d2_weight * d2_loss + l2_reg_weight * l2_loss + l4_reg_weight * loss_l4
 
 gradient_clip_value = config['training'].get('gradient_clip_value', 1.0)
 
@@ -225,7 +270,7 @@ for epoch in tqdm(range(config['optimizer']['maxiter_adam']), desc="Training", p
         test_loss = 0.0
         test_batches = len(test_dataset) // config['training']['batch_size']
         for test_signal, test_coefficients in data_loader(test_dataset, config['training']['batch_size'], shuffle=False):
-            test_loss += loss_fn(state.params, model, test_signal, test_coefficients, deterministic=True, rng_key=rng_key, ionoNHarm=ionoNHarm, kpsi_values=kpsi_values, add_l4 = False)
+            test_loss += loss_fn(state.params, model, test_signal, test_coefficients, deterministic=True, rng_key=rng_key, ionoNHarm=ionoNHarm, kpsi_values=kpsi_values, add_l4 = True)
         avg_test_loss = test_loss / test_batches
         test_loss_history.append(avg_test_loss.item())
     else:

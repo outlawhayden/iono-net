@@ -2,7 +2,7 @@ seed: 0
 
 paths:
   label_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/train_compl_ampls_20250206_104902.csv'  # Path to label data file
-  signal_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/test_uscStruct_vals_20250206_104913.csv'
+  signal_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/train_uscStruct_vals_20250206_104902.csv'
 
   test_label_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/test_compl_ampls_20250206_104913.csv'
   test_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/test_uscStruct_vals_20250206_104913.csv'
@@ -12,19 +12,20 @@ paths:
   kpsi_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/kPsi_20250206_104914.csv'
 
 model:
-  architecture: [400,400,400,400,400,400,400,400,400,400]  # Model architecture
+  architecture: [500,500,500,500,500,500,500,500,500,500,500,500]  # Model architecture
   activation: tanh  # Activation function (e.g., relu, tanh, sigmoid)
 
 training:
   batch_size: 64  # Batch size
   gradient_clip_value: 0.0001 # Gradient clipping value
-  l2_reg_weight: 0.1
-  l4_weight: 1.6 # weight for l4 cost
-  fourier_d1_weight: 0.05
-  fourier_d2_weight: 0.025
+  l2_reg_weight: 0
+  l4_weight: 1 # weight for l4 cost
+  fourier_weight: 0.0
+  fourier_d1_weight: 0.0
+  fourier_d2_weight: 0.0
 
 learning_rate:
-  initial: 0.000005  # Initial learning rate
+  initial: 0.000003  # Initial learning rate
   gamma: 1.5  # Learning rate decay factor
   step: 20 # Step size for learning rate decay
   final: 0.0000001  # Final learning rate

@@ -39,7 +39,7 @@ class Image:
 
             without_psi_heights = waveform * signal_vals * window
             self.integrand_cache[y] = without_psi_heights
-            print("without_psi_heights.shaoe:", without_psi_heights.shape)
+            print("without_psi_heights.shape:", without_psi_heights.shape)
             print("psi_vals.shape:", psi_vals.shape)
             heights = without_psi_heights * psi_vals
 
