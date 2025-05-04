@@ -39,8 +39,6 @@ class Image:
 
             without_psi_heights = waveform * signal_vals * window
             self.integrand_cache[y] = without_psi_heights
-            print("without_psi_heights.shape:", without_psi_heights.shape)
-            print("psi_vals.shape:", psi_vals.shape)
             heights = without_psi_heights * psi_vals
 
             imag_val[yidx] = np.trapz(heights, base, self.dx) / self.F

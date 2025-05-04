@@ -1,28 +1,28 @@
 seed: 0
 
 paths:
-  label_data_file_path: '/home/houtlaw/iono-net/data/1harm/train_compl_ampls_20250401_134207.csv'  # Path to label data file
-  signal_data_file_path: '/home/houtlaw/iono-net/data/1harm/train_uscStruct_vals_20250401_134207.csv'
+  label_data_file_path: '/home/houtlaw/iono-net/data/1harmrand/train_compl_ampls_20250403_125252.csv'  # Path to label data file
+  signal_data_file_path: '/home/houtlaw/iono-net/data/1harmrand/train_uscStruct_vals_20250403_125252.csv'
 
-  test_label_file_path: '/home/houtlaw/iono-net/data/1harm/test_compl_ampls_20250401_134213.csv'
-  test_data_file_path: '/home/houtlaw/iono-net/data/1harm/test_uscStruct_vals_20250401_134213.csv'
+  test_label_file_path: '/home/houtlaw/iono-net/data/1harmrand/test_compl_ampls_20250403_125256.csv'
+  test_data_file_path: '/home/houtlaw/iono-net/data/1harmrand/test_uscStruct_vals_20250403_125256.csv'
 
-  x_range_file_path: '/home/houtlaw/iono-net/data/1harm/meta_X_20250401_134214.csv'
-  setup_file_path: '/home/houtlaw/iono-net/data/1harm/setup_20250401_134214.json'
-  kpsi_file_path: '/home/houtlaw/iono-net/data/1harm/kPsi_20250401_134214.csv'
+  x_range_file_path: '/home/houtlaw/iono-net/data/1harmrand/meta_X_20250403_125256.csv'
+  setup_file_path: '/home/houtlaw/iono-net/data/1harmrand/setup_20250403_125256.json'
+  kpsi_file_path: '/home/houtlaw/iono-net/data/1harmrand/kPsi_20250403_125256.csv'
 
 model:
-  architecture: [500,500,500,500,500,500,500,500,500]  # Model architecture
+  architecture: [500,500,500,500,500,500,500]  # Model architecture
   activation: tanh  # Activation function (e.g., relu, tanh, sigmoid)
 
 training:
-  batch_size: 64  # Batch size
-  gradient_clip_value: 0.0001 # Gradient clipping value
-  l2_reg_weight: 0
-  l4_weight: 0.7 # weight for l4 cost
+  batch_size: 32  # Batch size
+  gradient_clip_value: 0.001 # Gradient clipping value
+  l2_reg_weight: 0.001
+  l4_weight: 0.0 # weight for l4 cost
   fourier_weight: 1
-  fourier_d1_weight: 0.5
-  fourier_d2_weight: 0.5
+  fourier_d1_weight: 0.01
+  fourier_d2_weight: 0.01
 
 learning_rate:
   initial: 0.000003  # Initial learning rate
@@ -31,4 +31,4 @@ learning_rate:
   final: 0.0000001  # Final learning rate
 
 optimizer:
-  maxiter_adam: 10000  # Maximum number of iterations for Adam optimizer
+  maxiter_adam: 5000  # Maximum number of iterations for Adam optimizer

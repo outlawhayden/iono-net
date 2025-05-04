@@ -52,7 +52,7 @@ SCATTERER_PATH_RELNOISE = f"{DATA_DIR}/test_nuStruct_withSpeckle_20250206_104911
 SIGNAL_PATH_RELNOISE = f"{DATA_DIR}/test_uscStruct_vals_20250206_104913.csv"
 KPSI_PATH = f"{DATA_DIR}/kPsi_20250206_104914.csv"
 PSI_COEFFS_PATH_RELNOISE = f"{DATA_DIR}/test_compl_ampls_20250206_104913.csv"
-MODEL_WEIGHTS_PATH = "/home/houtlaw/iono-net/model/model_weights_image_20250423_222354.pkl"
+MODEL_WEIGHTS_PATH = "/home/houtlaw/iono-net/data/architecture_experiments/45k_feb28_25/45k_model_weights.pkl"
 
 # Helper Functions
 def convert_to_complex(s):
@@ -60,13 +60,6 @@ def convert_to_complex(s):
     if s == "NaNNaNi":
         return 0
     return complex(s.replace('i', 'j'))
-
-def normalize_complex_to_unit_range(matrix):
-    amp = np.abs(matrix)
-    amp_max = np.max(amp, axis=1, keepdims=True)
-    amp_max[amp_max == 0] = 1
-    normalized = matrix / amp_max
-    return normalized.real + 1j * normalized.imag
 
 def split_complex_to_imaginary(complex_array):
     return np.concatenate([complex_array.real, complex_array.imag], axis=-1)
@@ -77,11 +70,20 @@ def build_psi_values(kpsi, compl_ampls, x):
         val += np.real(compl_ampls[ik] * np.exp(1j * kpsi[ik] * x))
     return val
 
-def add_plot_subtitle(setup):
+def add_plot_subtitle(setup, title=""):
+    ax = plt.gca()
     subtitle = (f"ionoAmplOverPi: {setup['ionoAmplOverPi']}, "
                 f"addSpeckleCoeff: {setup['addSpeckleCoeff']}, "
                 f"relNoiseCoeff: {setup['relNoiseCoeff']}")
-    plt.figtext(0.5, 0.01, subtitle, wrap=True, horizontalalignment='center', fontsize=16)
+    
+    # Main title
+    ax.set_title(f"{title}\n", fontsize=22)
+
+    # Subtitle as smaller text just below the main title (still inside the top margin)
+    plt.text(0.5, 1.02, subtitle,
+             transform=ax.transAxes,
+             ha='center', va='top',
+             fontsize=12)
 
 def compute_islr(image_integral, known_scatterers, x_vals, radius, radius_ratio, main_lobe_width, dx):
     islrs = []
@@ -246,16 +248,11 @@ def main():
         params = pickle.load(f)
 
     # Define model
-    architecture =  [256,256,256,256,256,256]
+    architecture =  [500,500,500,500,500,500,500,500,500,500,500,500]
     model = ConfigurableModel(architecture=architecture, activation_fn=jax.numpy.tanh)
 
     # Run inference on the trimmed signal
-    signal_df_full = pd.read_csv(SIGNAL_PATH_RELNOISE, dtype=str)
-    complex_matrix = signal_df_full.map(convert_to_complex).to_numpy().T  # shape (num_samples, signal_len)
-    normalized_matrix = normalize_complex_to_unit_range(complex_matrix)
-    fft_matrix = normalized_matrix # DISABLED FFT FOR NOW
-    sample_fft = fft_matrix[SAMPLE_IDX]
-    model_input = split_complex_to_imaginary(sample_fft)
+    model_input = split_complex_to_imaginary(signal_vals[1])  # The second row is the trimmed signal
     model_output = model.apply({'params': params}, model_input, deterministic=True)
     model_output_complex = model_output[: len(model_output)//2] + 1j*model_output[len(model_output)//2 :]
 
@@ -271,26 +268,26 @@ def main():
     model_image_object = Image(x_range_trunc, window_func=rect_window, signal=signal_vals_trunc, psi_obj=model_rec_fourier_psi, F=F)
     model_image_integral = model_image_object._evaluate_image()
 
-    # Plot model results
     plt.figure()
-    plt.plot(x_range, true_scatterers, 'orange', lw=3)
-    plt.plot(x_range_trunc, np.abs(model_image_integral) / DX, lw=2)
-    plt.title("Image Integral (NN) Inference")
-    add_plot_subtitle(setup)
-    plt.legend(["True Point Scatterers", "Image Integral (NN)"])
-    plt.savefig("neural_image_integral.png")
+    plt.plot(x_range, true_scatterers, color='black', lw=4, label="True Point Scatterers", linestyle="--")
+    plt.plot(x_range_trunc, np.abs(image_integral) / DX, lw=2, label="True Ψ Reconstruction")
+    plt.plot(x_range_trunc, np.abs(model_image_integral) / DX, lw=2, label="NN Ψ Reconstruction")
+    add_plot_subtitle(setup, title="Image Integral: Using True Ψ vs NN Predicted Ψ")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig("combined_image_integral.png")
 
     # Compute Psi Values and Plot
     model_psi_vals = build_psi_values(kpsi_values, model_output_complex, x_range_trunc)
     true_psi_vals = build_psi_values(kpsi_values, psi_coeffs_vals, x_range_trunc)
 
     plt.figure(figsize=(10, 6))
-    plt.plot(x_range_trunc, true_psi_vals, label="True Psi Values", lw=4)
-    plt.plot(x_range_trunc, model_psi_vals, label="Network Psi Values")
+    plt.plot(x_range_trunc, true_psi_vals, label="'True' Psi Values", lw=4)
+    plt.plot(x_range_trunc, model_psi_vals, label="Network Predicted Psi Values")
     plt.xlabel("x")
     plt.ylabel("Psi")
-    plt.title("Psi Values Plot")
-    add_plot_subtitle(setup)
+    plt.title("Sample Phase Screen")
     plt.grid(True)
     plt.legend()
     plt.savefig('psi_comparison.png')
@@ -301,6 +298,57 @@ def main():
 
     islr_avg_grad = compute_islr(np.abs(image_integral) / DX, true_scatterers, x_range_trunc, ISLR_RADIUS, ISLR_RADIUS_RATIO, ISLR_MAIN_LOBE_WIDTH, DX)
     print("ISLR Average (Classic):", islr_avg_grad)
+
+    
+    
+    import random
+
+    # Load the full signal and coeff matrix
+    signal_df = pd.read_csv(SIGNAL_PATH_RELNOISE).map(convert_to_complex).T
+    psi_coeff_df = pd.read_csv(PSI_COEFFS_PATH_RELNOISE).T.map(lambda x: complex(x.replace('i', 'j')))
+
+    # Randomly sample 100 indices
+    all_indices = list(range(len(signal_df)))
+    sample_indices = random.sample(all_indices, 100)
+
+    # Run inference and collect model outputs
+    outputs = []
+    for idx in sample_indices:
+        signal_complex = signal_df.iloc[idx].values
+        signal_input = split_complex_to_imaginary(signal_complex)
+        prediction = model.apply({'params': params}, signal_input, deterministic=True)
+        outputs.append(prediction)
+
+    outputs = np.array(outputs)  # shape: (100, 12)
+    means = outputs.mean(axis=0)
+    stds = outputs.std(axis=0)
+
+    coeff_indices = np.arange(6)
+
+    # First 6 coefficients
+    plt.figure(figsize=(10, 5))
+    plt.errorbar(coeff_indices, means[:6], yerr=stds[:6], fmt='o', capsize=5, linestyle='-', label='Mean ± Std')
+    plt.title("6 NN Predicted Real Ψ Coefficients (n = 100)")
+    plt.xlabel("Coefficient Index")
+    plt.ylabel("Value")
+    plt.xticks(coeff_indices, [f"{i}" for i in range(6)])
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("psi_coeff_stats_first6.png")
+
+    # Last 6 coefficients
+    plt.figure(figsize=(10, 5))
+    plt.errorbar(coeff_indices, means[6:], yerr=stds[6:], fmt='o', capsize=5, linestyle='-', label='Mean ± Std')
+    plt.title("6 NN Predicted Imaginary Ψ Coefficients (n = 100)")
+    plt.xlabel("Coefficient Index")
+    plt.ylabel("Value")
+    plt.xticks(coeff_indices, [f"{i}" for i in range(6)])
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("psi_coeff_stats_last6.png")
+
 
 if __name__ == "__main__":
     main()

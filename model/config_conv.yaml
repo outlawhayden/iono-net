@@ -1,0 +1,38 @@
+seed: 0
+
+paths:
+  label_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/train_compl_ampls_20250206_104902.csv'
+  signal_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/train_uscStruct_vals_20250206_104902.csv'
+
+  test_label_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/test_compl_ampls_20250206_104913.csv'
+  test_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/test_uscStruct_vals_20250206_104913.csv'
+
+  x_range_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/meta_X_20250206_104914.csv'
+  setup_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/setup_20250206_104914.json'
+  kpsi_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/kPsi_20250206_104914.csv'
+
+model:
+  conv_channels: [8,16]     # Number of filters in each Conv1D layer
+  dense_layers: [32]        # Dense layers after convs
+  activation: relu               # Activation function (tanh is fine for convs too)
+  dropout_rate: 0.3               # Optional dropout, moderate value
+  use_batchnorm: true
+
+training:
+  batch_size: 16
+  gradient_clip_value: 0.8
+  l2_reg_weight: 0.0002
+  l4_weight: 0.0005
+  fourier_weight: 1
+  fourier_d1_weight: 0.05
+  fourier_d2_weight: 0.05
+  amplitude_loss_weight: 0.2
+
+learning_rate:
+  initial: 0.0003       # or even 0.001 for faster convergence
+  gamma: 0.9            # decay every N steps
+  step: 500             # adjust depending on dataset size
+  final: 0.00001
+
+optimizer:
+  maxiter_adam: 30

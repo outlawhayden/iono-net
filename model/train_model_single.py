@@ -119,7 +119,7 @@ input_shape = (config['training']['batch_size'], data_matrix_split.shape[1])
 variables = model.init(root_key, jnp.ones(input_shape), deterministic=True)
 
 # L2 regularization weight
-l2_reg_weight = config['training'].get('l2_reg_weight', 1e-4)
+l2_reg_weight =  config['training'].get('l2_reg_weight', 1e-4)
 l4_reg_weight = config['training'].get('l4_reg_weight', 1e-3)
 fourier_weight = config['training'].get('fourier_weight', 1e-3)
 fourier_d1_weight = config['training'].get('fourier_d1_weight', 1e-3)
@@ -163,7 +163,7 @@ def loss_fn(params, model, inputs, true_coeffs, deterministic, rng_key, ionoNHar
     if add_l4:
         batch_size = inputs.shape[0]
         num_l4_samples = 4
-        sample_indices = jax.random.choice(rng_key, batch_size, shape=(num_l4_samples,), replace=False)
+        sample_indices = jax.random.choice(rng_key, batch_size, shape=(num_l4_samples,), replace=True)
 
         def compute_l4_for_index(idx):
             signal_sample = jax.lax.dynamic_index_in_dim(inputs, idx, keepdims=False)

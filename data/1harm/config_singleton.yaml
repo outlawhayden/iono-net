@@ -1,0 +1,34 @@
+seed: 0
+
+paths:
+  label_data_file_path: '/home/houtlaw/iono-net/data/1harm/train_compl_ampls_20250401_134207.csv'  # Path to label data file
+  signal_data_file_path: '/home/houtlaw/iono-net/data/1harm/train_uscStruct_vals_20250401_134207.csv'
+
+  test_label_file_path: '/home/houtlaw/iono-net/data/1harm/test_compl_ampls_20250401_134213.csv'
+  test_data_file_path: '/home/houtlaw/iono-net/data/1harm/test_uscStruct_vals_20250401_134213.csv'
+
+  x_range_file_path: '/home/houtlaw/iono-net/data/1harm/meta_X_20250401_134214.csv'
+  setup_file_path: '/home/houtlaw/iono-net/data/1harm/setup_20250401_134214.json'
+  kpsi_file_path: '/home/houtlaw/iono-net/data/1harm/kPsi_20250401_134214.csv'
+
+model:
+  architecture: [500,500,500,500,500,500,500,500,500]  # Model architecture
+  activation: tanh  # Activation function (e.g., relu, tanh, sigmoid)
+
+training:
+  batch_size: 64  # Batch size
+  gradient_clip_value: 0.0001 # Gradient clipping value
+  l2_reg_weight: 0
+  l4_weight: 0.7 # weight for l4 cost
+  fourier_weight: 1
+  fourier_d1_weight: 0.5
+  fourier_d2_weight: 0.5
+
+learning_rate:
+  initial: 0.000003  # Initial learning rate
+  gamma: 1.5  # Learning rate decay factor
+  step: 20 # Step size for learning rate decay
+  final: 0.0000001  # Final learning rate
+
+optimizer:
+  maxiter_adam: 10000  # Maximum number of iterations for Adam optimizer

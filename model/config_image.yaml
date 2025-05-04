@@ -1,7 +1,7 @@
 seed: 0
 
 paths:
-  label_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/train_compl_ampls_20250206_104902.csv'  # Path to label data file
+  label_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/train_compl_ampls_20250206_104902.csv'
   signal_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/train_uscStruct_vals_20250206_104902.csv'
 
   test_label_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/test_compl_ampls_20250206_104913.csv'
@@ -12,20 +12,26 @@ paths:
   kpsi_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/kPsi_20250206_104914.csv'
 
 model:
-  architecture: [16,256,32,64,128,256]  # Model architecture
-  activation: tanh  # Activation function (e.g., relu, tanh, sigmoid)
+  type: configurable   # 'configurable' or 'unet'
+
+  # If type == 'configurable':
+  architecture: [256,256,256,256,256,256]
+  activation: tanh  # relu, tanh, gelu
+
+  # If type == 'unet':
+  depth: 3
+  base_features: 32
+  kernel_size: 3
 
 training:
-  batch_size: 32  # Batch size
-  gradient_clip_value: 4.221883110492239 # Gradient clipping value
-  l2_reg_weight: 0.000600658
-  l4_weight: 0.6992110621266228 # weight for l4 cost
-  fourier_weight: 0.6838133551234865
-  fourier_d1_weight: 0.6520469151728887
-  fourier_d2_weight: 0.048048599821104834
-
+  batch_size: 16
+  gradient_clip_value: 4.221883110492239
+  l2_reg_weight: 0.03
+  fourier_weight: 0
+  image_diff_weight: 1
 learning_rate:
-  fixed: 0.00545934491059608
+  fixed: 0.004829288776927212
 
 optimizer:
-  maxiter_adam: 1000  # Maximum number of iterations for Adam optimizer
+  maxiter_adam: 300
+

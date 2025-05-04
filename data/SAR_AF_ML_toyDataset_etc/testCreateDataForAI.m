@@ -2,7 +2,7 @@
 function testCreateDataForAI
 
     % data generation size
-    seeds.count = 5000;
+    seeds.count = 3000;
 
     stepRefinePow = 2;  
     %ionoNharm = 6; 
@@ -228,8 +228,9 @@ end
 function compl_ampls = createCustomPsiComplAmpls(setup, initHarmonicIdx)
     rng(setup.rng_seed.ionosphere);        
     phases = 2 * pi * rand(setup.ionoNharm, 1); 
-    abs_ampls = createScaledAmplsAbs(setup, initHarmonicIdx);
-    compl_ampls = abs_ampls % changed to ignore phases for now
+    abs_ampls = createScaledAmplsAbs(setup, initHarmonicIdx); 
+    randMultiplier = 2 * (rand([1, 1]) - 0.5); %% random multiplier to vary amplitude - DOUBLE CHECK
+    compl_ampls = abs_ampls * randMultiplier; % changed to ignore phases for now
     %compl_ampls = abs_ampls .* exp(1i * phases);
 end
 

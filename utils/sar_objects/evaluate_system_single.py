@@ -29,7 +29,7 @@ from Helper import *
 from Image import *
 from Psi import *
 from Optimize import *
-from model import ConfigurableModel
+from model import ConfigurableModelSingle
 
 # Matplotlib settings
 plt.rcParams.update({'font.size': 22})
@@ -45,14 +45,14 @@ ISLR_MAIN_LOBE_WIDTH = 0.75 #fixed main lobe width
 COMPARISON_SAMPLE_SIZE = 10
 
 # File paths
-DATA_DIR = "/home/houtlaw/iono-net/data/baselines/10k_lownoise"
-X_RANGE_PATH = f"{DATA_DIR}/meta_X_20250206_104914.csv"
-SETUP_PATH = f"{DATA_DIR}/setup_20250206_104914.json"
-SCATTERER_PATH_RELNOISE = f"{DATA_DIR}/test_nuStruct_withSpeckle_20250206_104911.csv"
-SIGNAL_PATH_RELNOISE = f"{DATA_DIR}/test_uscStruct_vals_20250206_104913.csv"
-KPSI_PATH = f"{DATA_DIR}/kPsi_20250206_104914.csv"
-PSI_COEFFS_PATH_RELNOISE = f"{DATA_DIR}/test_compl_ampls_20250206_104913.csv"
-MODEL_WEIGHTS_PATH = "/home/houtlaw/iono-net/model/model_weights_image_20250423_222354.pkl"
+DATA_DIR = "/home/houtlaw/iono-net/data/1harm"
+X_RANGE_PATH = f"{DATA_DIR}/meta_X_20250401_134214.csv"
+SETUP_PATH = f"{DATA_DIR}/setup_20250401_134214.json"
+SCATTERER_PATH_RELNOISE = f"{DATA_DIR}/test_nuStruct_withSpeckle_20250401_134212.csv"
+SIGNAL_PATH_RELNOISE = f"{DATA_DIR}/test_uscStruct_vals_20250401_134213.csv"
+KPSI_PATH = f"{DATA_DIR}/kPsi_20250401_134214.csv"
+PSI_COEFFS_PATH_RELNOISE = f"{DATA_DIR}/test_compl_ampls_20250401_134213.csv"
+MODEL_WEIGHTS_PATH = "/home/houtlaw/iono-net/model/model_weights_single.pkl"
 
 # Helper Functions
 def convert_to_complex(s):
@@ -60,13 +60,6 @@ def convert_to_complex(s):
     if s == "NaNNaNi":
         return 0
     return complex(s.replace('i', 'j'))
-
-def normalize_complex_to_unit_range(matrix):
-    amp = np.abs(matrix)
-    amp_max = np.max(amp, axis=1, keepdims=True)
-    amp_max[amp_max == 0] = 1
-    normalized = matrix / amp_max
-    return normalized.real + 1j * normalized.imag
 
 def split_complex_to_imaginary(complex_array):
     return np.concatenate([complex_array.real, complex_array.imag], axis=-1)
@@ -127,7 +120,7 @@ def load_data():
 
     # Load psi coefficients
     psi_coeffs_df = pd.read_csv(PSI_COEFFS_PATH_RELNOISE).T
-    psi_coeffs_df = psi_coeffs_df.map(lambda x: complex(x.replace('i', 'j')))
+    psi_coeffs_df = psi_coeffs_df.map(lambda x: complex(str(x).replace('i', 'j')) if isinstance(x, str) else complex(x))
     psi_coeffs_vals = psi_coeffs_df.iloc[SAMPLE_IDX].values
 
     return x_range, setup, true_scatterers, signal_vals, kpsi_values, psi_coeffs_vals
@@ -246,18 +239,15 @@ def main():
         params = pickle.load(f)
 
     # Define model
-    architecture =  [256,256,256,256,256,256]
-    model = ConfigurableModel(architecture=architecture, activation_fn=jax.numpy.tanh)
+    # Define model (now single coefficient)
+    architecture =  [500,500,500,500,500,500,500,500,500]
+    model = ConfigurableModelSingle(architecture=architecture, activation_fn=jax.numpy.tanh)
 
     # Run inference on the trimmed signal
-    signal_df_full = pd.read_csv(SIGNAL_PATH_RELNOISE, dtype=str)
-    complex_matrix = signal_df_full.map(convert_to_complex).to_numpy().T  # shape (num_samples, signal_len)
-    normalized_matrix = normalize_complex_to_unit_range(complex_matrix)
-    fft_matrix = normalized_matrix # DISABLED FFT FOR NOW
-    sample_fft = fft_matrix[SAMPLE_IDX]
-    model_input = split_complex_to_imaginary(sample_fft)
+    model_input = split_complex_to_imaginary(signal_vals[1])  # Still expects real+imag
     model_output = model.apply({'params': params}, model_input, deterministic=True)
-    model_output_complex = model_output[: len(model_output)//2] + 1j*model_output[len(model_output)//2 :]
+    model_output_complex = np.array([model_output.item() + 0j])  # One complex coefficient
+
 
     # Split model output into cosine and sine coefficients
     model_cos_coeffs = [j.real for j in model_output_complex]
