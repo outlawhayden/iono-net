@@ -32,7 +32,7 @@ def jnp_image_reconstruction(x_range, signal_vals, pr, pi, kpsi_values, F, dx, x
     x_trimmed = x_range[mask]
     signal_trimmed = signal_vals[mask]
     offsets = jnp.linspace(-F2, F2, int(F/dx)+1)
-
+    
     def trapz_nonuniform_jax(y, x):
         dx = x[1:] - x[:-1]
         avg_y = 0.5 * (y[1:] + y[:-1])
