@@ -84,9 +84,15 @@ for i in tqdm(range(signal_df.shape[0]), desc="Processing signals"):
     image_dataset_focused.append(np.array(image_focused))
     image_dataset_unfocused.append(np.array(image_unfocused))
 
-# --- Save datasets ---
-pd.DataFrame(np.stack(image_dataset_focused)).to_csv(OUTPUT_PATH_FOCUSED, index=False)
-pd.DataFrame(np.stack(image_dataset_unfocused)).to_csv(OUTPUT_PATH_UNFOCUSED, index=False)
+final_trim = F//2
+image_focused_arr = np.stack(image_dataset_focused)[:, final_trim:-final_trim+1]
+image_unfocused_arr = np.stack(image_dataset_unfocused)[:, final_trim:-final_trim+1]
+
+print(image_focused.shape)
+print(x_final.shape)
+
+pd.DataFrame(image_focused_arr).to_csv(OUTPUT_PATH_FOCUSED, index=False)
+pd.DataFrame(image_unfocused_arr).to_csv(OUTPUT_PATH_UNFOCUSED, index=False)
 pd.DataFrame(x_final).to_csv(X_TRIM_PATH, index=False, header=False)
 
 print(f"Saved focused image dataset to: {OUTPUT_PATH_FOCUSED}")

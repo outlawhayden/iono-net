@@ -6,11 +6,20 @@ paths:
   x_range_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/x_range_image_recon_jnp.csv'
   setup_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/setup_20250206_104914.json'
   kpsi_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/kPsi_20250206_104914.csv'
+
 model_config: {
     'down_channels': [32, 64, 128],
     'bottleneck_channels': 256,
     'up_channels': [128, 64, 32],
-    'output_dim': 6}
+    'output_dim': 12} # keep fixed at 12, for coefficient output
 
 training:
   batch_size: 4
+  gradient_clip_value: 5.0
+  l2_reg_weight: 0.01
+
+learning_rate:
+  fixed: 0.0001
+
+optimizer:
+  num_epochs: 300
