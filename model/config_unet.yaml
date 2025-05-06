@@ -3,6 +3,8 @@ seed: 0
 paths:
   label_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/train_compl_ampls_20250206_104902.csv'
   data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/train_image_recon_jnp_unfocused.csv'
+  test_label_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/test_compl_ampls_20250206_104913.csv'
+  test_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/test_image_recon_jnp_unfocused.csv'
   x_range_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/x_range_image_recon_jnp.csv'
   setup_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/setup_20250206_104914.json'
   kpsi_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/kPsi_20250206_104914.csv'
@@ -22,4 +24,4 @@ learning_rate:
   fixed: 0.0001
 
 optimizer:
-  num_epochs: 300
+  num_epochs: 10

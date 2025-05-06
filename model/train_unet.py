@@ -75,9 +75,17 @@ data_matrix = pd.read_csv(data_file_path).map(convert_to_complex).to_numpy().T
 data_matrix = np.abs(data_matrix[:-1,:])
 x_range = pd.read_csv(x_range_file_path).iloc[:,0].values #1040 long
 
+# load test dataset if it exists
+test_dataset = None
+if "test_data_file_path" in config['paths'] and "test_label_file_path" in config['paths']:
+    print("Loading Test Dataset")
+    test_label_matrix = pd.read_csv(config["paths"]["test_label_file_path"]).map(convert_to_complex).to_numpy().T
+    test_data_matrix = pd.read_csv(config["paths"]["test_data_file_path"]).map(convert_to_complex).to_numpy().T
+    test_data_matrix = np.abs(test_data_matrix[:-1, :])
+else:
+    print("No Test Dataset Loaded")
 
 # convert labels from 6 complex -> 12 real
-
 def split_complex_to_imaginary(complex_array):
     return np.concatenate([complex_array.real, complex_array.imag], axis=-1)
 
@@ -143,10 +151,11 @@ opt = optax.chain(
 state = train_state.TrainState.create(apply_fn = model.apply, params = variables['params'], tx = opt)
 
 loss_history = []
+test_loss_history = []
 
 with open("training_losses_unet.csv", "w", newline = '') as f:
     writer = csv.writer(f)
-    writer.writerow(["Epoch", "Training Loss"])
+    writer.writerow(["Epoch", "Training Loss", "Test Loss"])
 
 batch_size = config["training"]["batch_size"]
 
@@ -164,8 +173,27 @@ for epoch in tqdm(range(config["optimizer"]["num_epochs"]), desc = "Training", p
     avg_epoch_loss = batch_loss / num_batches
     loss_history.append(avg_epoch_loss.item())
 
+    if test_dataset:
+        test_loss = 0.0
+
+        test_batches = len(dataset)// batch_size
+        for test_image, test_coefficients in data_loader(test_dataset, config['training']['batch_size'], shuffle = False):
+            total_test_loss, _ = loss_fn(state.params, model, test_image, test_coefficients, deterministic = True, rng_key = rng_key)
+            test_loss += total_test_loss[0]
+        avg_test_loss = test_loss / test_batches
+        test_loss_history.append(avg_test_loss.item())
+
+    else:
+        avg_test_loss = None
+
+
     with open("training_losses_unet.csv", "a", newline = '') as f:
         writer = csv.writer(f)
-        writer.writerow([epoch+1, avg_epoch_loss])
+        writer.writerow([epoch+1, avg_epoch_loss, avg_test_loss])
 
+
+final_weights_name = f"unet_weights_image_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl"
+with open(final_weights_name, "wb") as f:
+    pickle.dump(state.params, f)
+print(f"Training complete. Model weights saved as '{final_weights_name}'.")
 
