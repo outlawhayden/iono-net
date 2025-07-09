@@ -9,12 +9,12 @@ from tqdm import tqdm
 jax.config.update("jax_enable_x64", True)
 
 # --- Configuration ---
-DATA_DIR = "/home/houtlaw/iono-net/data/baselines/10k_lownoise"
-X_RANGE_PATH = f"{DATA_DIR}/meta_X_20250206_104914.csv"
-SETUP_PATH = f"{DATA_DIR}/setup_20250206_104914.json"
-SIGNAL_PATH = f"/home/houtlaw/iono-net/data/baselines/10k_lownoise/train_uscStruct_vals_20250206_104902.csv"
-PSI_PATH = f"/home/houtlaw/iono-net/data/baselines/10k_lownoise/train_compl_ampls_20250206_104902.csv"
-KPSI_PATH = f"{DATA_DIR}/kPsi_20250206_104914.csv"
+DATA_DIR = "/home/houtlaw/iono-net/data/0.5iono"
+X_RANGE_PATH = f"{DATA_DIR}/meta_X_20250625_123749.csv"
+SETUP_PATH = f"{DATA_DIR}/setup_20250625_123749.json"
+SIGNAL_PATH = f"{DATA_DIR}/train_uscStruct_vals_20250625_123748.csv"
+PSI_PATH = f"{DATA_DIR}/train_compl_ampls_20250625_123748.csv"
+KPSI_PATH = f"{DATA_DIR}/kPsi_20250625_123749.csv"
 OUTPUT_PATH_FOCUSED = f"{DATA_DIR}/train_image_recon_jnp.csv"
 OUTPUT_PATH_UNFOCUSED = f"{DATA_DIR}/train_image_recon_jnp_unfocused.csv"
 X_TRIM_PATH = f"{DATA_DIR}/x_range_image_recon_jnp.csv"
@@ -31,8 +31,12 @@ def jnp_image_reconstruction(x_range, signal_vals, pr, pi, kpsi_values, F, dx, x
     mask = (x_range >= (x_range[0] + F2)) & (x_range <= (x_range[-1] - F2))
     x_trimmed = x_range[mask]
     signal_trimmed = signal_vals[mask]
-    offsets = jnp.linspace(-F2, F2, int(F/dx)+1)
-    
+
+    if len(x_trimmed) == 0:
+        return jnp.array([]), jnp.array([])
+
+    offsets = jnp.linspace(-F2, F2, int(F/dx) + 1)
+
     def trapz_nonuniform_jax(y, x):
         dx = x[1:] - x[:-1]
         avg_y = 0.5 * (y[1:] + y[:-1])
@@ -44,7 +48,7 @@ def jnp_image_reconstruction(x_range, signal_vals, pr, pi, kpsi_values, F, dx, x
         waveform = jnp.exp(-1j * jnp.pi * (base - y) ** 2 / F)
         sarr = xi * base + (1 - xi) * y
         psi_pred = jnp.exp(1j * (
-            jnp.sum(pr[:, None] * jnp.cos(jnp.outer(sarr, kpsi_values).T), axis=0) +
+            jnp.sum(pr[:, None] * jnp.cos(jnp.outer(sarr, kpsi_values).T), axis=0) -
             jnp.sum(pi[:, None] * jnp.sin(jnp.outer(sarr, kpsi_values).T), axis=0)
         ))
         integrand = waveform * interp * psi_pred
@@ -68,32 +72,47 @@ assert signal_df.shape[0] == psi_df.shape[0]
 image_dataset_focused = []
 image_dataset_unfocused = []
 x_final = None
+common_length = None
 
 for i in tqdm(range(signal_df.shape[0]), desc="Processing signals"):
     signal_vals = jnp.array(signal_df.iloc[i].values)
     psi_coeffs = psi_df.iloc[i].values
     pr = jnp.real(psi_coeffs)
     pi = -jnp.imag(psi_coeffs)
-    
+
     image_focused, x_used = jnp_image_reconstruction(x_range, signal_vals, pr, pi, kpsi_values, F, DX, xi)
     image_unfocused, _ = jnp_image_reconstruction(x_range, signal_vals, jnp.zeros_like(pr), jnp.zeros_like(pi), kpsi_values, F, DX, xi)
 
+    # Skip if reconstruction failed
+    if image_focused.size == 0 or image_unfocused.size == 0:
+        print(f"Skipping sample {i}: reconstruction returned empty array")
+        continue
+
     if x_final is None:
         x_final = np.array(x_used)
+        common_length = len(x_used)
+    else:
+        common_length = min(common_length, len(image_focused), len(image_unfocused), len(x_used))
 
-    image_dataset_focused.append(np.array(image_focused))
-    image_dataset_unfocused.append(np.array(image_unfocused))
+    image_dataset_focused.append(np.array(image_focused[:common_length]))
+    image_dataset_unfocused.append(np.array(image_unfocused[:common_length]))
 
-final_trim = F//2
-image_focused_arr = np.stack(image_dataset_focused)[:, final_trim:-final_trim+1]
-image_unfocused_arr = np.stack(image_dataset_unfocused)[:, final_trim:-final_trim+1]
+# Trim x_range to common length
+x_final = x_final[:common_length]
 
-print(image_focused.shape)
-print(x_final.shape)
+# Final trimming (optional, safe only if length >= 2 * trim)
+final_trim = int(F // 2)
+if common_length <= 2 * final_trim:
+    raise ValueError(f"common_length = {common_length} too short for trim of {final_trim} each side")
 
+image_focused_arr = np.stack(image_dataset_focused)[:, final_trim:-final_trim]
+image_unfocused_arr = np.stack(image_dataset_unfocused)[:, final_trim:-final_trim]
+x_trimmed = x_final[final_trim:-final_trim]
+
+# Save outputs
 pd.DataFrame(image_focused_arr).to_csv(OUTPUT_PATH_FOCUSED, index=False)
 pd.DataFrame(image_unfocused_arr).to_csv(OUTPUT_PATH_UNFOCUSED, index=False)
-pd.DataFrame(x_final).to_csv(X_TRIM_PATH, index=False, header=False)
+pd.DataFrame(x_trimmed).to_csv(X_TRIM_PATH, index=False, header=False)
 
 print(f"Saved focused image dataset to: {OUTPUT_PATH_FOCUSED}")
 print(f"Saved unfocused image dataset to: {OUTPUT_PATH_UNFOCUSED}")

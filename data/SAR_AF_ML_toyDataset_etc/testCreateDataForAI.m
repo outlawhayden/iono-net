@@ -2,11 +2,10 @@
 function testCreateDataForAI
 
     % data generation size
-    seeds.count = 3000;
+    seeds.count = 10000;
 
     stepRefinePow = 2;  
-    %ionoNharm = 6; 
-    ionoNharm = 1; %% CHANGED TO SINGLETON
+    ionoNharm = 6;
     seeds.start = struct('ionosphere', 21, 'clutter', 61, 'PS', 41); 
     outputMatfname = 'radarSeries.mat'; 
     createDataForRangeOfSeeds(stepRefinePow, ionoNharm, seeds, outputMatfname); 
@@ -39,7 +38,7 @@ function [setup, init_rng_seed, initHarmonicIdx] = createSetupForAI(stepRefinePo
     setup.minScattererRadius = 1;
   
     % see createSetup_etc in minusI4_BareboneSetup, option  'reconstr_shortscale_rect'
-    setup.ionoAmplOverPi = 4; 5; 6; 8; 4; 2; 
+    setup.ionoAmplOverPi = 2; %2; 
     setup.F_to_lmax = 1.5; 
     
     setup.windowFun = @(x) ones(size(x));                    setup.windowType = 'rect'; 
@@ -230,8 +229,9 @@ function compl_ampls = createCustomPsiComplAmpls(setup, initHarmonicIdx)
     phases = 2 * pi * rand(setup.ionoNharm, 1); 
     abs_ampls = createScaledAmplsAbs(setup, initHarmonicIdx); 
     randMultiplier = 2 * (rand([1, 1]) - 0.5); %% random multiplier to vary amplitude - DOUBLE CHECK
-    compl_ampls = abs_ampls * randMultiplier; % changed to ignore phases for now
-    %compl_ampls = abs_ampls .* exp(1i * phases);
+    %compl_ampls = abs_ampls * randMultiplier; % changed to ignore phases for now
+    %compl_ampls = zeros(setup.ionoNharm, 1); % SET ALL PHASE SCREEN HARMONICS TO ZERO
+    compl_ampls = abs_ampls .* exp(1i * phases);
 end
 
 

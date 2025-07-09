@@ -1,0 +1,29 @@
+seed: 0
+
+paths:
+  label_data_file_path: "/home/houtlaw/iono-net/data/0.5iono/train_compl_ampls_20250625_123748.csv"
+  signal_data_file_path: "/home/houtlaw/iono-net/data/0.5iono/train_uscStruct_vals_20250625_123748.csv"
+  focused_image_file_path: "/home/houtlaw/iono-net/data/0.5iono/train_image_recon_jnp.csv"
+
+  test_label_file_path: "/home/houtlaw/iono-net/data/0.5iono/test_compl_ampls_20250625_123749.csv"
+  test_data_file_path: "/home/houtlaw/iono-net/data/0.5iono/test_uscStruct_vals_20250625_123749.csv"
+  test_focused_image_file_path: "/home/houtlaw/iono-net/data/0.5iono/test_image_recon_jnp.csv"
+
+model:
+  architecture: [32, 64, 128, 256, 512, 1024, 2048]
+  psi_head_arch: [512, 128]
+  image_head_arch:  [2048, 1024, 512, 256, 128, 64, 32]
+  activation: "ReLU"
+  dropout_rate: 0.1
+
+optimizer:
+  maxiter_adam: 10000
+
+learning_rate:
+  fixed: 0.00001
+
+training:
+  batch_size: 64
+  l2_reg_weight: 0.001
+  coeff_loss_weight: 1
+  image_loss_weight: 1

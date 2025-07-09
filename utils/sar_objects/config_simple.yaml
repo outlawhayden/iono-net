@@ -1,0 +1,32 @@
+seed: 0
+
+paths:
+  label_data_file_path: '/home/houtlaw/iono-net/data/baselines/30k_baseline/train_compl_ampls_20250204_132323.csv'  # Path to label data file
+  signal_data_file_path: '/home/houtlaw/iono-net/data/baselines/30k_baseline/train_uscStruct_vals_20250204_132324.csv'
+
+  test_label_file_path: '/home/houtlaw/iono-net/data/baselines/30k_baseline/test_compl_ampls_20250204_132358.csv'
+  test_data_file_path: '/home/houtlaw/iono-net/data/baselines/30k_baseline/test_uscStruct_vals_20250204_132359.csv'
+
+  x_range_file_path: '/home/houtlaw/iono-net/data/baselines/30k_baseline/meta_X_20250204_132405.csv'
+  setup_file_path: '/home/houtlaw/iono-net/data/baselines/30k_baseline/setup_20250204_132405.json'
+  kpsi_file_path: '/home/houtlaw/iono-net/data/baselines/30k_baseline/kPsi_20250204_132405.csv'
+
+model:
+  architecture: [64,64,32,16]  # Model architecture
+  activation: 'ReLU'  # Activation function (e.g., relu, tanh, sigmoid)
+  dropout_rate: 0.2
+
+training:
+  batch_size: 1 # Batch size
+  gradient_clip_value: 1 # Gradient clipping value
+  l2_reg_weight: 0.001
+  l4_weight: 1 # weight for l4 cost
+  fourier_weight: 0
+  fourier_d1_weight: 0
+  fourier_d2_weight: 0
+
+learning_rate:
+  fixed: 0.00003
+
+optimizer:
+  maxiter_adam: 200  # Maximum number of iterations for Adam optimizer

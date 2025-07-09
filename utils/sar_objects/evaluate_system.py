@@ -29,7 +29,7 @@ from Helper import *
 from Image import *
 from Psi import *
 from Optimize import *
-from model import ConfigurableModel
+from model_color import ConfigurableModel
 
 # Matplotlib settings
 plt.rcParams.update({'font.size': 22})
@@ -37,7 +37,7 @@ rcParams["figure.figsize"] = (30, 8)
 plt.rcParams["savefig.dpi"] = 300
 
 # Parameters
-SAMPLE_IDX = 2
+SAMPLE_IDX = 40
 DX = 0.25
 ISLR_RADIUS = 5 # min distance between scatterers
 ISLR_RADIUS_RATIO = 0.6 # ratio of radius for sidelobe integral
@@ -45,14 +45,14 @@ ISLR_MAIN_LOBE_WIDTH = 0.75 #fixed main lobe width
 COMPARISON_SAMPLE_SIZE = 10
 
 # File paths
-DATA_DIR = "/home/houtlaw/iono-net/data/baselines/10k_lownoise"
-X_RANGE_PATH = f"{DATA_DIR}/meta_X_20250206_104914.csv"
-SETUP_PATH = f"{DATA_DIR}/setup_20250206_104914.json"
-SCATTERER_PATH_RELNOISE = f"{DATA_DIR}/test_nuStruct_withSpeckle_20250206_104911.csv"
-SIGNAL_PATH_RELNOISE = f"{DATA_DIR}/test_uscStruct_vals_20250206_104913.csv"
-KPSI_PATH = f"{DATA_DIR}/kPsi_20250206_104914.csv"
-PSI_COEFFS_PATH_RELNOISE = f"{DATA_DIR}/test_compl_ampls_20250206_104913.csv"
-MODEL_WEIGHTS_PATH = "/home/houtlaw/iono-net/model/model_weights_image_20250423_222354.pkl"
+DATA_DIR = "/home/houtlaw/iono-net/data/0.5iono"
+X_RANGE_PATH = f"{DATA_DIR}/meta_X_20250625_123749.csv"
+SETUP_PATH = f"{DATA_DIR}/setup_20250625_123749.json"
+SCATTERER_PATH_RELNOISE = f"{DATA_DIR}/test_nuStruct_withSpeckle_20250625_123748.csv"
+SIGNAL_PATH_RELNOISE = f"{DATA_DIR}/test_uscStruct_vals_20250625_123749.csv"
+KPSI_PATH = f"{DATA_DIR}/kPsi_20250625_123749.csv"
+PSI_COEFFS_PATH_RELNOISE = f"{DATA_DIR}/test_compl_ampls_20250625_123749.csv"
+MODEL_WEIGHTS_PATH = "/home/houtlaw/iono-net/model/model_weights_full_20250701_094140.pkl"
 
 # Helper Functions
 def convert_to_complex(s):
@@ -163,7 +163,7 @@ def evaluate_image(domain, window_func, signal, cos_coeffs, sin_coeffs, wavenums
         """Cache psi values for a given y."""
         sarr =  xi * base + (1 - xi) * y  # Calculate sarr directly using the base array
         psi_vals = np.real(np.sum(
-            cos_coeffs * np.cos(np.outer(sarr, wavenums)) +
+            cos_coeffs * np.cos(np.outer(sarr, wavenums)) -
             sin_coeffs * np.sin(np.outer(sarr, wavenums)),
             axis=1
         ))
@@ -231,6 +231,10 @@ def main():
     image_object = Image(x_range_trunc, window_func=rect_window, signal=signal_vals_trunc, psi_obj=rec_fourier_psi, F=F)
     image_integral = image_object._evaluate_image()
 
+    zero_psi = RecFourierPsi(np.zeros_like(cos_coeffs), np.zeros_like(sin_coeffs), kpsi_values, ionoNHarm)
+    zero_psi.cache_psi(x_range_trunc, F, DX, xi)
+    unfocused_image_object = Image(x_range_trunc, window_func = rect_window, signal = signal_vals_trunc, psi_obj = zero_psi, F = F)
+
     # Plot results
     plt.plot(x_range, true_scatterers, 'orange', lw=3)
     plt.plot(x_range_trunc, np.abs(image_integral) / DX, lw=2)
@@ -246,7 +250,7 @@ def main():
         params = pickle.load(f)
 
     # Define model
-    architecture =  [256,256,256,256,256,256]
+    architecture =  [256,256,128,128,64,64,32,32] 
     model = ConfigurableModel(architecture=architecture, activation_fn=jax.numpy.tanh)
 
     # Run inference on the trimmed signal
@@ -255,9 +259,14 @@ def main():
     normalized_matrix = normalize_complex_to_unit_range(complex_matrix)
     fft_matrix = normalized_matrix # DISABLED FFT FOR NOW
     sample_fft = fft_matrix[SAMPLE_IDX]
-    model_input = split_complex_to_imaginary(sample_fft)
+    
+    model_input = jnp.expand_dims(split_complex_to_imaginary(sample_fft), axis=0)
+    
+    #model_input = split_complex_to_imaginary(sample_fft)
     model_output = model.apply({'params': params}, model_input, deterministic=True)
-    model_output_complex = model_output[: len(model_output)//2] + 1j*model_output[len(model_output)//2 :]
+    model_output = model_output[0]  # remove batch dim: shape (12,)
+    half = model_output.shape[0] // 2
+    model_output_complex = model_output[:half] + 1j * model_output[half:]
 
     # Split model output into cosine and sine coefficients
     model_cos_coeffs = [j.real for j in model_output_complex]
@@ -270,19 +279,23 @@ def main():
     # Create model image object
     model_image_object = Image(x_range_trunc, window_func=rect_window, signal=signal_vals_trunc, psi_obj=model_rec_fourier_psi, F=F)
     model_image_integral = model_image_object._evaluate_image()
+    zero_focus_integral = unfocused_image_object._evaluate_image()
+
 
     # Plot model results
     plt.figure()
     plt.plot(x_range, true_scatterers, 'orange', lw=3)
-    plt.plot(x_range_trunc, np.abs(model_image_integral) / DX, lw=2)
-    plt.title("Image Integral (NN) Inference")
+    plt.plot(x_range_trunc, np.abs(model_image_integral)/DX, lw=2)
+    plt.plot(x_range_trunc, np.abs(zero_focus_integral)/DX, lw = 2)
+    plt.title("Image Integral (NN) Inference, ionoAmplOverPi = 0.5")
     add_plot_subtitle(setup)
-    plt.legend(["True Point Scatterers", "Image Integral (NN)"])
+    plt.legend(["True Point Scatterers", "Image Integral (NN)", "Image Integral (No Focus)"])
     plt.savefig("neural_image_integral.png")
 
     # Compute Psi Values and Plot
     model_psi_vals = build_psi_values(kpsi_values, model_output_complex, x_range_trunc)
     true_psi_vals = build_psi_values(kpsi_values, psi_coeffs_vals, x_range_trunc)
+    print("MODEL ERROR", model_output_complex - psi_coeffs_vals)
 
     plt.figure(figsize=(10, 6))
     plt.plot(x_range_trunc, true_psi_vals, label="True Psi Values", lw=4)

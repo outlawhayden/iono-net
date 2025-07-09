@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 import flax.linen as nn
-from typing import Sequence, Any
+from typing import Sequence, Optional
 
 class ConvBlock(nn.Module):
     features: int
@@ -44,14 +44,15 @@ class UpBlock(nn.Module):
         return x
 
 class UNet1D(nn.Module):
-    down_channels: Sequence[int]     # e.g., [32, 64, 128]
-    bottleneck_channels: int         # e.g., 256
-    up_channels: Sequence[int]       # e.g., [128, 64, 32]
-    output_dim: int = 12             # final output size
+    down_channels: Sequence[int]             # e.g., [32, 64, 128]
+    bottleneck_channels: int                 # e.g., 256
+    up_channels: Optional[Sequence[int]]     # e.g., [128, 64, 32] or None
+    output_dim: int = 6                      # final output size
 
     @nn.compact
-    def __call__(self, x):  # x shape: (batch, 1040)
-        x = x[..., None]    # expand to (batch, 1040, 1)
+    def __call__(self, x):  # x shape: (batch, length, channels)
+        if x.ndim == 2:
+            x = x[..., None]  # expand to (batch, length, 1)
 
         skips = []
 
@@ -63,13 +64,16 @@ class UNet1D(nn.Module):
         # Bottleneck
         x = ConvBlock(self.bottleneck_channels)(x)
 
-        # Up path
-        for ch, skip in zip(self.up_channels, reversed(skips)):
-            x = UpBlock(ch)(x, skip)
+        if self.up_channels is not None and len(self.up_channels) > 0:
+            # Up path
+            for ch, skip in zip(self.up_channels, reversed(skips)):
+                x = UpBlock(ch)(x, skip)
+        # Else: encoder-only path
 
-        # Global average pooling over spatial dimension
+        # Global average pooling
         x = jnp.mean(x, axis=1)  # shape: (batch, features)
 
         # Final dense output
-        x = nn.Dense(self.output_dim)(x)
+        x = nn.Dense(self.output_dim * 2)(x)  # output flattened real+imag pairs
+        x = x.reshape((x.shape[0], self.output_dim, 2))
         return x

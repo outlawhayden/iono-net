@@ -1,0 +1,31 @@
+seed: 42
+
+model:
+  up_dims: [128,256]
+  dense_dims: [256,256,256]
+  down_dims: [128,32]
+  activation: "tanh"
+
+training:
+  batch_size: 16
+  gradient_clip_value: 1.0
+  l2_reg_weight: 0.01
+  l4_reg_weight: 0.1
+  fourier_weight: 1
+  fourier_d1_weight: 0
+  fourier_d2_weight: 0
+
+learning_rate:
+  fixed: 0.001
+
+optimizer:
+  maxiter_adam: 200
+
+paths:
+  label_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/train_compl_ampls_20250206_104902.csv'
+  signal_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/train_uscStruct_vals_20250206_104902.csv'
+  test_label_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/test_compl_ampls_20250206_104913.csv'
+  test_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/test_uscStruct_vals_20250206_104913.csv'
+  x_range_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/meta_X_20250206_104914.csv'
+  setup_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/setup_20250206_104914.json'
+  kpsi_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/kPsi_20250206_104914.csv'

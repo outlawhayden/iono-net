@@ -12,16 +12,19 @@ paths:
 model_config: {
     'down_channels': [32, 64, 128],
     'bottleneck_channels': 256,
-    'up_channels': [128, 64, 32],
-    'output_dim': 12} # keep fixed at 12, for coefficient output
+    'up_channels': [],
+    'output_dim': 6} # keep fixed at 6, for coefficient output
 
 training:
-  batch_size: 4
-  gradient_clip_value: 5.0
-  l2_reg_weight: 0.01
+  batch_size: 8
+  gradient_clip_value: 20.0
+  l2_reg_weight: 0.03
 
 learning_rate:
-  fixed: 0.0001
+  fixed: 0.01
 
 optimizer:
-  num_epochs: 10
+  num_epochs: 1000
+
+bagging:
+  n_models: 1

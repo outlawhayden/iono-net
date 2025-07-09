@@ -164,5 +164,28 @@ def main():
     plt.savefig("compare_image_integrals_phase_difference.png")
     plt.show()
 
+
+
+
+
+    # === Plot Unfocused vs Focused Image ===
+    pr_zero = jnp.zeros_like(pr)
+    pi_zero = jnp.zeros_like(pi)
+
+    x_unfocused, image_unfocused = jnp_image_reconstruction(x_range, signal_data, pr_zero, pi_zero, kpsi_values, F, DX, xi)
+    image_unfocused = image_unfocused[mask_image]  # Match domain trimming
+
+    plt.figure(figsize=(12,6))
+    plt.plot(x_recon, np.abs(image_unfocused) / DX, label='Unfocused Image (Ψ = 0)', linewidth=2, linestyle='--')
+    plt.plot(x_recon, np.abs(image_integral_jnp) / DX, label='Focused Image (Ψ != 0)', linewidth=2)
+    plt.title('Unfocused vs Focused Image (JAX Reconstruction) (+)')
+    plt.xlabel('x')
+    plt.ylabel('Magnitude (|I(x)|)')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig("unfocused_vs_focused_image(plus).png")
+    plt.show()
+
+
 if __name__ == "__main__":
     main()

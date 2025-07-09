@@ -14,6 +14,7 @@ from tqdm import tqdm
 import pickle
 import json
 import csv
+from flax.linen.initializers import variance_scaling
 from Helper import *
 from Image import *
 from Psi import *
@@ -36,10 +37,17 @@ with open("config_simple.yaml", "r") as f:
 root_key = jax.random.PRNGKey(seed=config['seed'])
 main_key, params_key, rng_key = jax.random.split(key=root_key, num=3)
 
+small_kernel_init = variance_scaling(1e-4, "fan_avg", "uniform")
+zero_bias_init = nn.initializers.zeros
+
 architecture = config['model']['architecture']
 activation_fn = getattr(jnp, config['model']['activation'])
-model = ConfigurableModel(architecture=architecture, activation_fn=activation_fn)
-
+model = ConfigurableModel(
+    architecture=architecture,
+    activation_fn=activation_fn,
+    kernel_init=small_kernel_init,
+    bias_init=zero_bias_init
+)
 def convert_to_complex(s):
     if s == "NaNNaNi":
         return 0
@@ -64,6 +72,7 @@ kpsi_values_path = config['paths']['kpsi_file_path']
 
 label_df = pd.read_csv(label_file_path, dtype=str)
 data_df = pd.read_csv(data_file_path, dtype=str)
+
 label_matrix = normalize_complex_to_unit_range(label_df.map(convert_to_complex).to_numpy().T)
 data_matrix = normalize_complex_to_unit_range(data_df.map(convert_to_complex).to_numpy().T)
 
@@ -94,6 +103,7 @@ if "test_data_file_path" in config['paths'] and "test_label_file_path" in config
     test_dataset = list(zip(test_data_matrix_split, test_label_matrix_split))
 else:
     print("No test dataset found.")
+    
 
 def data_loader(dataset, batch_size, shuffle=True):
     dataset_size = len(dataset)
@@ -107,6 +117,21 @@ def data_loader(dataset, batch_size, shuffle=True):
         batch_coefficients = [dataset[i][1] for i in batch_indices]
         yield jnp.array(batch_signal), jnp.array(batch_coefficients)
 
+def linear_interp(x, xp, fp):
+    def interpolate_single(xi):
+        idx = jnp.clip(jnp.searchsorted(xp, xi, side="right") - 1, 0, xp.shape[0] - 2)
+
+        # Safely gather values without using arr[idx] directly
+        x0 = jax.lax.dynamic_index_in_dim(xp, idx, keepdims=False)
+        x1 = jax.lax.dynamic_index_in_dim(xp, idx + 1, keepdims=False)
+        y0 = jax.lax.dynamic_index_in_dim(fp, idx, keepdims=False)
+        y1 = jax.lax.dynamic_index_in_dim(fp, idx + 1, keepdims=False)
+
+        slope = (y1 - y0) / (x1 - x0 + 1e-12)
+        return y0 + slope * (xi - x0)
+
+    return jax.vmap(interpolate_single)(x)
+
 def calculate_l4_norm(x_range, signal_vals, preds_real, preds_imag, kpsi_values, ionoNHarm, F, DX, xi, zero_pad):
     signal_complex = signal_vals[:1441] + 1j * signal_vals[1441:]
     signal_trimmed = signal_complex[4 * zero_pad : -4 * zero_pad]
@@ -116,22 +141,21 @@ def calculate_l4_norm(x_range, signal_vals, preds_real, preds_imag, kpsi_values,
 
     def evaluate_single(y):
         base = y + offsets
-        real_interp = jnp.interp(base, x_trimmed, jnp.real(signal_trimmed))
-        imag_interp = jnp.interp(base, x_trimmed, jnp.imag(signal_trimmed))
+        real_interp = linear_interp(base, x_trimmed, jnp.real(signal_trimmed))
+        imag_interp = linear_interp(base, x_trimmed, jnp.imag(signal_trimmed))
         signal_interp = real_interp + 1j * imag_interp
-        window = jnp.ones_like(base)
         waveform = jnp.exp(-1j * jnp.pi * (base - y) ** 2 / F)
         sarr = xi * base + (1 - xi) * y
         psi_cos = jnp.sum(preds_real[:, None] * jnp.cos(jnp.outer(sarr, kpsi_values).T), axis=0)
         psi_sin = jnp.sum(preds_imag[:, None] * jnp.sin(jnp.outer(sarr, kpsi_values).T), axis=0)
-        psi_vals = jnp.exp(1j * (psi_cos + psi_sin))
-        integrand = waveform * signal_interp * window * psi_vals
-        integral_real = jnp.trapezoid(jnp.real(integrand), dx=DX)
-        integral_imag = jnp.trapezoid(jnp.imag(integrand), dx=DX)
-        return (integral_real + 1j * integral_imag) / F
+        psi_vals = jnp.exp(1j * (psi_cos - psi_sin))
+        integrand = waveform * signal_interp * psi_vals
+        integral = jnp.trapezoid(integrand, dx=DX)
+        return integral / F
 
-    image_vals = vmap(evaluate_single)(x_trimmed)
-    return jnp.sum(jnp.abs(image_vals) ** 4)
+    image_vals = jax.vmap(evaluate_single)(x_trimmed)
+    return jnp.sum(jnp.abs(image_vals) ** 4).real
+
 
 def loss_fn(params, model, inputs, true_coeffs, deterministic, rng_key,
             ionoNHarm, kpsi_values, add_l4,
@@ -147,18 +171,15 @@ def loss_fn(params, model, inputs, true_coeffs, deterministic, rng_key,
     d2_loss = jnp.mean(jnp.sum((jnp.arange(6) ** 4) * sq_diffs, axis=1))
     l2_loss = sum(jnp.sum(jnp.square(p)) for p in jax.tree_util.tree_leaves(params))
 
+
     if add_l4:
-        batch_size = inputs.shape[0]
-        sample_indices = jax.random.choice(rng_key, batch_size, shape=(4,), replace=False)
-        def compute_single_l4(index):
-            signal_sample = inputs[index]
-            preds_real_sample = preds_real[index]
-            preds_imag_sample = preds_imag[index]
-            return calculate_l4_norm(x_range, signal_sample, preds_real_sample, preds_imag_sample, kpsi_values, ionoNHarm, F, dx, xi, zero_pad)
-        loss_l4 = jnp.mean(jax.vmap(compute_single_l4)(sample_indices))
+        def compute_single_l4(signal_sample, real_pred, imag_pred):
+            return calculate_l4_norm(x_range, signal_sample, real_pred, imag_pred, kpsi_values, ionoNHarm, F, dx, xi, zero_pad)
+        loss_l4 = jnp.mean(jax.vmap(compute_single_l4)(inputs, preds_real, preds_imag))
     else:
         loss_l4 = 0.0
 
+    print("L4 terms", loss_l4, loss_l4 * l4_weight)
     return (fourier_weight * direct_loss +
             fourier_d1_weight * d1_loss +
             fourier_d2_weight * d2_loss +
@@ -177,6 +198,11 @@ opt = optax.chain(
     optax.clip_by_global_norm(gradient_clip_value),
     optax.adamw(learning_rate=fixed_learning_rate, weight_decay=l2_reg_weight)
 )
+
+# Use small initial weights and zero biases
+small_kernel_init = variance_scaling(1e-4, "fan_avg", "uniform")
+zero_bias_init = nn.initializers.zeros
+
 input_shape = (config['training']['batch_size'], data_matrix_split.shape[1])
 variables = model.init(main_key, jnp.ones(input_shape), deterministic=True)
 
@@ -238,12 +264,6 @@ for epoch in tqdm(range(config['optimizer']['maxiter_adam']), desc="Training", p
         writer = csv.writer(f)
         writer.writerow([epoch + 1, avg_epoch_loss, avg_test_loss])
 
-    if (epoch + 1) % 100 == 0:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        weights_filename = f"model_weights_epoch_{epoch + 1}_{timestamp}.pkl"
-        with open(weights_filename, "wb") as f:
-            pickle.dump(state.params, f)
-        print(f"Saved model weights to {weights_filename}")
 
     print(f"Epoch {epoch+1}: Training Loss = {avg_epoch_loss:.6f}, Test Loss = {avg_test_loss:.6f}" if avg_test_loss else f"Epoch {epoch+1}: Training Loss = {avg_epoch_loss:.6f}")
 

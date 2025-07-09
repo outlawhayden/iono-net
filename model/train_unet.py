@@ -69,27 +69,48 @@ def convert_to_complex(s):
     else:
         return complex(s.replace('i', 'j'))
 
+
+def stack_real_imag_as_channels(complex_array):
+    real_part = complex_array.real[..., np.newaxis]
+    imag_part = complex_array.imag[..., np.newaxis]
+    return np.concatenate([real_part, imag_part], axis=-1)
+
 # load in data according to file paths
-label_matrix = pd.read_csv(label_file_path).map(convert_to_complex).to_numpy().T
-data_matrix = pd.read_csv(data_file_path).map(convert_to_complex).to_numpy().T
-data_matrix = np.abs(data_matrix[:-1,:])
+label_matrix_raw = pd.read_csv(label_file_path).map(convert_to_complex).to_numpy().T
+data_matrix_raw = pd.read_csv(data_file_path).map(convert_to_complex).to_numpy().T
 x_range = pd.read_csv(x_range_file_path).iloc[:,0].values #1040 long
+
+# normalize and stack input data
+data_matrix_real = data_matrix_raw.real
+data_matrix_imag = data_matrix_raw.imag
+data_mean = np.mean(data_matrix_raw)
+data_std = np.std(data_matrix_raw)
+data_matrix_norm = (data_matrix_raw - data_mean) / data_std
+data_matrix = stack_real_imag_as_channels(data_matrix_norm.T)  # shape: (n_samples, signal_length, 2)
+
+# normalize and stack label data
+label_real = label_matrix_raw.real
+label_imag = label_matrix_raw.imag
+label_mean = np.mean(label_matrix_raw)
+label_std = np.std(label_matrix_raw)
+label_matrix_norm = (label_matrix_raw - label_mean) / label_std
+label_matrix = stack_real_imag_as_channels(label_matrix_norm)  # shape: (n_samples, n_coeffs, 2)
 
 # load test dataset if it exists
 test_dataset = None
 if "test_data_file_path" in config['paths'] and "test_label_file_path" in config['paths']:
     print("Loading Test Dataset")
-    test_label_matrix = pd.read_csv(config["paths"]["test_label_file_path"]).map(convert_to_complex).to_numpy().T
-    test_data_matrix = pd.read_csv(config["paths"]["test_data_file_path"]).map(convert_to_complex).to_numpy().T
-    test_data_matrix = np.abs(test_data_matrix[:-1, :])
+    test_label_matrix_raw = pd.read_csv(config["paths"]["test_label_file_path"]).map(convert_to_complex).to_numpy().T
+    test_label_matrix_norm = (test_label_matrix_raw - label_mean) / label_std
+    test_label_matrix = stack_real_imag_as_channels(test_label_matrix_norm)
+
+    test_data_matrix_raw = pd.read_csv(config["paths"]["test_data_file_path"]).map(convert_to_complex).to_numpy().T
+    test_data_matrix_norm = (test_data_matrix_raw - data_mean) / data_std
+    test_data_matrix = stack_real_imag_as_channels(test_data_matrix_norm.T)
+
+    test_dataset = list(zip(test_data_matrix, test_label_matrix))
 else:
     print("No Test Dataset Loaded")
-
-# convert labels from 6 complex -> 12 real
-def split_complex_to_imaginary(complex_array):
-    return np.concatenate([complex_array.real, complex_array.imag], axis=-1)
-
-label_matrix = split_complex_to_imaginary(label_matrix)
 
 # create zipped dataset
 dataset = list(zip(data_matrix, label_matrix))
@@ -105,8 +126,8 @@ model = UNet1D(
     output_dim=model_config["output_dim"]
 )
 
-signal_length = data_matrix.shape[0]+1  # should be 1040
-x_dummy = jnp.ones((batch_size, signal_length))
+signal_length = data_matrix.shape[1]  # already includes full length
+x_dummy = jnp.ones((batch_size, signal_length, 2))
 
 # Initialize model parameters with dummy input
 variables = model.init(params_key, x_dummy)
@@ -128,14 +149,11 @@ def data_loader(dataset, batch_size, shuffle = True):
 
 # define loss function (simple l2 difference of coefficients)
 def loss_fn(params, model, inputs, true_coeffs, deterministic, rng_key):
-    # preds = model.apply({'params':params}, inputs, deterministic = deterministic)
-    preds = model.apply({'params':params}, inputs)
-    preds_real, preds_imag = preds[:,:6], preds[:, 6:]
-    true_real, true_imag = true_coeffs[:, :6], true_coeffs [:,6:]
-    real_diffs = preds_real - true_real
-    imag_diffs = preds_imag - true_imag
-    sq_diffs = real_diffs ** 2 + imag_diffs ** 2
-    direct_loss = jnp.mean(jnp.sum(sq_diffs, axis = 1))
+    preds = model.apply({'params': params}, inputs)  # preds: (batch, 6, 2)
+    real_diffs = preds[..., 0] - true_coeffs[..., 0]
+    imag_diffs = preds[..., 1] - true_coeffs[..., 1]
+    sq_diffs = real_diffs**2 + imag_diffs**2
+    direct_loss = jnp.mean(jnp.sum(sq_diffs, axis=1))  # sum over coefficients
     return direct_loss, direct_loss
 
 gradient_clip_value = config['training'].get('gradient_clip_value', 1.0)
@@ -157,43 +175,36 @@ with open("training_losses_unet.csv", "w", newline = '') as f:
     writer = csv.writer(f)
     writer.writerow(["Epoch", "Training Loss", "Test Loss"])
 
-batch_size = config["training"]["batch_size"]
-
 for epoch in tqdm(range(config["optimizer"]["num_epochs"]), desc = "Training", position = 0):
     batch_loss = 0.0
-
     num_batches = len(dataset) // batch_size
+
     for batch_image, batch_coefficients in data_loader(dataset, batch_size):
         rng_key, subkey = jax.random.split(rng_key)
         loss, grads = jax.value_and_grad(loss_fn, has_aux= True)(state.params, model, batch_image, batch_coefficients,
                                                                  deterministic = False, rng_key = subkey)
         state = state.apply_gradients(grads = grads)
         batch_loss += loss[0]
-        
+
     avg_epoch_loss = batch_loss / num_batches
     loss_history.append(avg_epoch_loss.item())
 
     if test_dataset:
         test_loss = 0.0
-
-        test_batches = len(dataset)// batch_size
-        for test_image, test_coefficients in data_loader(test_dataset, config['training']['batch_size'], shuffle = False):
+        test_batches = len(test_dataset) // batch_size
+        for test_image, test_coefficients in data_loader(test_dataset, batch_size, shuffle = False):
             total_test_loss, _ = loss_fn(state.params, model, test_image, test_coefficients, deterministic = True, rng_key = rng_key)
-            test_loss += total_test_loss[0]
+            test_loss += total_test_loss
         avg_test_loss = test_loss / test_batches
         test_loss_history.append(avg_test_loss.item())
-
     else:
         avg_test_loss = None
-
 
     with open("training_losses_unet.csv", "a", newline = '') as f:
         writer = csv.writer(f)
         writer.writerow([epoch+1, avg_epoch_loss, avg_test_loss])
 
-
 final_weights_name = f"unet_weights_image_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl"
 with open(final_weights_name, "wb") as f:
     pickle.dump(state.params, f)
 print(f"Training complete. Model weights saved as '{final_weights_name}'.")
-
