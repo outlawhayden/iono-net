@@ -1,0 +1,25 @@
+paths:
+  unfocused_train:   '/home/houtlaw/iono-net/data/aug25/train_image_recon_jnp_unfocused.csv'
+  focused_train:     '/home/houtlaw/iono-net/data/aug25/train_image_recon_jnp.csv'
+  unfocused_val:     '/home/houtlaw/iono-net/data/aug25/test_image_recon_jnp_unfocused.csv'
+  focused_val:       '/home/houtlaw/iono-net/data/aug25/test_image_recon_jnp.csv'
+
+training:
+  batch_size: 128
+  epochs: 50
+  grad_clip_norm: 10.0
+  max_train_samples: null   # or an integer
+  max_val_samples:   null
+  num_workers: 0
+
+model:
+  base_channels: 256
+  depth: 5
+  dropout_rate: 0.2
+
+optimizer:
+  lr: 0.001
+  weight_decay: 0.001
+
+loss:
+  l4_weight: 0.00001

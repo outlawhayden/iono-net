@@ -1,0 +1,30 @@
+seed: 0
+
+paths:
+  label_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/train_compl_ampls_20250206_104902.csv'
+  data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/train_image_recon_jnp_unfocused.csv'
+  test_label_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/test_compl_ampls_20250206_104913.csv'
+  test_data_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/test_image_recon_jnp_unfocused.csv'
+  x_range_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/x_range_image_recon_jnp.csv'
+  setup_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/setup_20250206_104914.json'
+  kpsi_file_path: '/home/houtlaw/iono-net/data/baselines/10k_lownoise/kPsi_20250206_104914.csv'
+
+model_config: {
+    'down_channels': [32, 64, 128],
+    'bottleneck_channels': 256,
+    'up_channels': [],
+    'output_dim': 6} # keep fixed at 6, for coefficient output
+
+training:
+  batch_size: 8
+  gradient_clip_value: 20.0
+  l2_reg_weight: 0.03
+
+learning_rate:
+  fixed: 0.01
+
+optimizer:
+  num_epochs: 1000
+
+bagging:
+  n_models: 1

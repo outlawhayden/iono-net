@@ -1,0 +1,15 @@
+Re: data, everything in here assums datasets created/processed using '../data' directory for formatting. 
+There are a few different model types in here based on different architectures. All of the training scripts read in parameters (architecture, regularization, etc.,) from the corresponding .yaml file, as well as directories for where the dataloader actually points up top. Double check these before training.
+These config files also include stopping criterion - generally a hard coded epoch number, but some also have early-stopping implemented.
+
+The current models are implemented in PyTorch - there are JAX versions of a few of them in 'jax_models', but I found the Jax version of autograd difficult to work with when calculating the required integrals (L2 and L4 norms of various functions). PyTorch was more reliable in passing gradients and including them in backpropagation without failing silently.
+Once config files are updated, just call training script, and model will dump weights out in a .pkl file in a directory generallly defined at the end of the file.
+
+For extended training (continue thread without SSH connection), I used nohup. Piping the output (tqdm progress bars) into a .log file, you can define a log file, and use 2>&1. Be sure to add & for async thread. 
+    - eg 'nohup python3 train_ynet_torch.py > output_ynet.log 2>&1 &'
+
+There are a few other things in here from a classical optimization program (Helper, Image, Psi, RunScenario) that use object based definitions for a few functions. The ML scripts should now no longer need them, but I'm leaving them here for safety.
+If you're not familiar with it, 'Optuna' is a script that does hyperparameter searching over some of the values defined in the config files. If you don't know your way around it, you don't have to interact with it. It does save trial results out as a sqlite database inside the directory - if you are having trouble doing hyperparameter optimization though I found this to be a very optimized way to search parameter space.
+
+
+

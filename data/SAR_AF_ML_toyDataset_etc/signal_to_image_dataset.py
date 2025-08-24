@@ -1,117 +1,232 @@
 import os
 import json
-import jax
-import jax.numpy as jnp
 import pandas as pd
 import numpy as np
+import torch
 from tqdm import tqdm
 
-jax.config.update("jax_enable_x64", True)
+# ================================================================
+# CONFIGURATION
+# ------------------------------------------------
+# Define input and output file paths. These point to metadata,
+# signal data, Psi coefficient data, and output CSVs for the
+# reconstructed focused and unfocused images.
+# ================================================================
+DATA_DIR = "/home/houtlaw/iono-net/data/aug25"
 
-# --- Configuration ---
-DATA_DIR = "/home/houtlaw/iono-net/data/0.5iono"
-X_RANGE_PATH = f"{DATA_DIR}/meta_X_20250625_123749.csv"
-SETUP_PATH = f"{DATA_DIR}/setup_20250625_123749.json"
-SIGNAL_PATH = f"{DATA_DIR}/train_uscStruct_vals_20250625_123748.csv"
-PSI_PATH = f"{DATA_DIR}/train_compl_ampls_20250625_123748.csv"
-KPSI_PATH = f"{DATA_DIR}/kPsi_20250625_123749.csv"
-OUTPUT_PATH_FOCUSED = f"{DATA_DIR}/train_image_recon_jnp.csv"
-OUTPUT_PATH_UNFOCUSED = f"{DATA_DIR}/train_image_recon_jnp_unfocused.csv"
+# Metadata: spatial sampling range (x-axis points)
+X_RANGE_PATH = f"{DATA_DIR}/meta_X_20250707_155325.csv"
+
+# Setup JSON (contains system parameters like F, xi, etc.)
+SETUP_PATH = f"{DATA_DIR}/setup_20250707_155325.json"
+
+# Test set signals (uscStruct values) – raw time-domain samples
+SIGNAL_PATH = f"{DATA_DIR}/test_uscStruct_vals_20250707_155324.csv"
+
+# Psi coefficients corresponding to each test signal
+PSI_PATH = f"{DATA_DIR}/test_compl_ampls_20250707_155324.csv"
+
+# Harmonic wavenumber values (kPsi)
+KPSI_PATH = f"{DATA_DIR}/kPsi_20250707_155325.csv"
+
+# Outputs: reconstructed images (focused, unfocused), trimmed x-range
+OUTPUT_PATH_FOCUSED = f"{DATA_DIR}/test_image_recon_jnp.csv"
+OUTPUT_PATH_UNFOCUSED = f"{DATA_DIR}/test_image_recon_jnp_unfocused.csv"
 X_TRIM_PATH = f"{DATA_DIR}/x_range_image_recon_jnp.csv"
 
-# --- Helpers ---
+# ================================================================
+# HELPER FUNCTIONS
+# ================================================================
+
 def convert_to_complex(s):
+    """
+    Convert a string entry from CSV into a complex number.
+    Handles MATLAB-style "NaNNaNi" placeholder specially.
+    """
     s = str(s)
     if s == "NaNNaNi":
-        return np.nan
-    return complex(s.replace('i', 'j'))
+        return np.nan  # Represent missing data as NaN
+    return complex(s.replace("i", "j"))  # MATLAB uses 'i', Python expects 'j'
 
-def jnp_image_reconstruction(x_range, signal_vals, pr, pi, kpsi_values, F, dx, xi):
-    F2 = F / 2
-    mask = (x_range >= (x_range[0] + F2)) & (x_range <= (x_range[-1] - F2))
-    x_trimmed = x_range[mask]
-    signal_trimmed = signal_vals[mask]
+def compute_image_integral_torch(x_range, signal_vals, model_output_complex, kpsi_values, F, dx, xi=0.5):
+    """
+    Compute the image-domain reconstruction integral in PyTorch.
 
-    if len(x_trimmed) == 0:
-        return jnp.array([]), jnp.array([])
+    Inputs:
+        x_range (ndarray): spatial sample coordinates
+        signal_vals (array): [x, signal(x)] where x are domain points
+        model_output_complex (torch.cfloat tensor): Psi harmonic coefficients
+        kpsi_values (array): harmonic wavenumbers
+        F (float): focusing parameter (aperture size)
+        dx (float): sample spacing
+        xi (float): interpolation parameter for Psi argument
 
-    offsets = jnp.linspace(-F2, F2, int(F/dx) + 1)
+    Output:
+        torch.cfloat tensor of reconstructed image over x_range
+    """
+    device = model_output_complex.device
 
-    def trapz_nonuniform_jax(y, x):
-        dx = x[1:] - x[:-1]
-        avg_y = 0.5 * (y[1:] + y[:-1])
-        return jnp.sum(dx * avg_y)
+    # Convert domain and signal to torch tensors
+    domain = torch.tensor(x_range, dtype=torch.float64, device=device)
+    real_signal = torch.tensor(signal_vals[0], dtype=torch.float64, device=device)   # x values
+    complex_signal = torch.tensor(signal_vals[1], dtype=torch.cfloat, device=device) # signal(x)
 
-    def eval_point(y):
-        base = y + offsets
-        interp = jnp.interp(base, x_trimmed, signal_trimmed)
-        waveform = jnp.exp(-1j * jnp.pi * (base - y) ** 2 / F)
+    # Split coefficients into cosine/sine amplitudes
+    cosAmps = model_output_complex.real
+    sinAmps = -model_output_complex.imag  # sign convention
+
+    # Wavenumber basis values
+    wavenums = torch.tensor(kpsi_values, dtype=torch.float64, device=device)
+
+    # ------------------------------------------------------------
+    # Local helper to compute Psi phase term exp(i * Psi(sarr))
+    # where Psi(sarr) = sum_k [cosAmps_k cos(k*sarr) + sinAmps_k sin(k*sarr)]
+    # ------------------------------------------------------------
+    def calc_psi(sarr):
+        wavenum_sarr = torch.outer(sarr, wavenums)  # (len(sarr), nHarm)
+        cosAmp_mat = cosAmps.unsqueeze(0)  # shape (1, nHarm)
+        sinAmp_mat = sinAmps.unsqueeze(0)  # shape (1, nHarm)
+        cos_terms = torch.cos(wavenum_sarr) * cosAmp_mat
+        sin_terms = torch.sin(wavenum_sarr) * sinAmp_mat
+        return torch.sum(cos_terms + sin_terms, dim=1)
+
+    # ============================================================
+    # Main reconstruction integral: iterate over output positions y
+    # ============================================================
+    image_vals = []
+    for y in domain:
+        y = y.item()
+
+        # Integration window: [y - F/2, y + F/2]
+        x0 = torch.max(real_signal[0], torch.tensor(y - F / 2, dtype=torch.float64, device=device))
+        x1 = torch.min(real_signal[-1], torch.tensor(y + F / 2, dtype=torch.float64, device=device))
+
+        # Restrict integration to overlapping portion of signal
+        mask = (real_signal >= x0) & (real_signal <= x1)
+        base = real_signal[mask]
+        signal_segment = complex_signal[mask]
+
+        if base.numel() == 0:
+            # If no overlap, append zero
+            image_vals.append(torch.tensor(0.0, dtype=torch.cfloat, device=device))
+            continue
+
+        # Fresnel diffraction kernel (quadratic phase term)
+        waveform = torch.exp(-1j * torch.pi * (base - y) ** 2 / F)
+
+        # Psi correction term (phase screen modulation)
         sarr = xi * base + (1 - xi) * y
-        psi_pred = jnp.exp(1j * (
-            jnp.sum(pr[:, None] * jnp.cos(jnp.outer(sarr, kpsi_values).T), axis=0) -
-            jnp.sum(pi[:, None] * jnp.sin(jnp.outer(sarr, kpsi_values).T), axis=0)
-        ))
-        integrand = waveform * interp * psi_pred
-        return trapz_nonuniform_jax(integrand, base) / F
+        psi_vals = torch.exp(1j * calc_psi(sarr))
 
-    return jax.vmap(eval_point)(x_trimmed), x_trimmed
+        # Integrand = kernel * signal * Psi term
+        integrand = waveform * signal_segment * psi_vals
 
-# --- Load setup and data ---
-x_range = pd.read_csv(X_RANGE_PATH).iloc[:, 0].values
+        # Numerical integration using trapezoidal rule
+        integral = torch.trapz(integrand, base) / F
+
+        image_vals.append(integral)
+
+    return torch.stack(image_vals)
+
+# ================================================================
+# LOAD SETUP AND DATA
+# ================================================================
+
+# Load x-range values (first column only)
+x_range_np = pd.read_csv(X_RANGE_PATH).iloc[:, 0].values
+
+# Load experiment setup (JSON dict)
 with open(SETUP_PATH) as f:
     setup = json.load(f)
-F, xi, DX = setup["F"], setup["xi"], 0.25
-kpsi_values = pd.read_csv(KPSI_PATH).values.flatten()
+F, xi, DX = setup["F"], setup["xi"], 0.25  # Force DX=0.25
+final_trim = int(F // 2)                   # Trim length (half aperture size)
 
+# Load harmonic wavenumbers (kPsi)
+kpsi_values_np = pd.read_csv(KPSI_PATH, header=None).values.flatten()
+
+# Load signals (uscStruct values) and Psi coefficients from CSV
+# Note: stored as strings, so must convert to complex carefully
 signal_df = pd.read_csv(SIGNAL_PATH, dtype=str).map(convert_to_complex).T
-psi_df = pd.read_csv(PSI_PATH, dtype=str).map(lambda s: complex(s.replace('i', 'j'))).T
+psi_df = pd.read_csv(PSI_PATH, dtype=str).map(lambda s: complex(s.replace("i", "j"))).T
+assert signal_df.shape[0] == psi_df.shape[0], "Mismatch between signals and Psi coefficients"
 
-assert signal_df.shape[0] == psi_df.shape[0]
+# ================================================================
+# MAIN PROCESSING LOOP
+# ================================================================
 
-# --- Process all samples (focused and unfocused) ---
-image_dataset_focused = []
-image_dataset_unfocused = []
-x_final = None
-common_length = None
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-for i in tqdm(range(signal_df.shape[0]), desc="Processing signals"):
-    signal_vals = jnp.array(signal_df.iloc[i].values)
+# Storage for all reconstructed images
+image_focused_all = []
+image_unfocused_all = []
+
+for i in tqdm(range(signal_df.shape[0]), desc="Processing samples"):
+    # Extract ith sample signal and Psi coefficients
+    signal_full = np.array(signal_df.iloc[i].values)
     psi_coeffs = psi_df.iloc[i].values
-    pr = jnp.real(psi_coeffs)
-    pi = -jnp.imag(psi_coeffs)
 
-    image_focused, x_used = jnp_image_reconstruction(x_range, signal_vals, pr, pi, kpsi_values, F, DX, xi)
-    image_unfocused, _ = jnp_image_reconstruction(x_range, signal_vals, jnp.zeros_like(pr), jnp.zeros_like(pi), kpsi_values, F, DX, xi)
-
-    # Skip if reconstruction failed
-    if image_focused.size == 0 or image_unfocused.size == 0:
-        print(f"Skipping sample {i}: reconstruction returned empty array")
+    # Skip empty/NaN-only signals
+    if np.all(np.isnan(signal_full)):
+        print(f"Skipping sample {i} (all NaNs)")
         continue
 
-    if x_final is None:
-        x_final = np.array(x_used)
-        common_length = len(x_used)
-    else:
-        common_length = min(common_length, len(image_focused), len(image_unfocused), len(x_used))
+    # Replace NaNs with zeros (preserve length but avoid integration errors)
+    signal_cleaned = np.nan_to_num(signal_full, nan=0.0)
 
-    image_dataset_focused.append(np.array(image_focused[:common_length]))
-    image_dataset_unfocused.append(np.array(image_unfocused[:common_length]))
+    # Ensure signal length matches domain
+    if signal_cleaned.shape != x_range_np.shape:
+        print(f"Skipping sample {i} due to shape mismatch")
+        continue
 
-# Trim x_range to common length
-x_final = x_final[:common_length]
+    # Package [x, signal(x)] for integral
+    signal_vals = np.stack([x_range_np, signal_cleaned])
 
-# Final trimming (optional, safe only if length >= 2 * trim)
-final_trim = int(F // 2)
-if common_length <= 2 * final_trim:
-    raise ValueError(f"common_length = {common_length} too short for trim of {final_trim} each side")
+    # Convert Psi coefficients to torch tensor
+    model_output_complex = torch.tensor(psi_coeffs, dtype=torch.cfloat, device=device)
 
-image_focused_arr = np.stack(image_dataset_focused)[:, final_trim:-final_trim]
-image_unfocused_arr = np.stack(image_dataset_unfocused)[:, final_trim:-final_trim]
-x_trimmed = x_final[final_trim:-final_trim]
+    # Psi coefficients must align with wavenumbers
+    if len(psi_coeffs) != len(kpsi_values_np):
+        print(f"Skipping sample {i} due to length mismatch in Psi coefficients")
+        continue
 
-# Save outputs
-pd.DataFrame(image_focused_arr).to_csv(OUTPUT_PATH_FOCUSED, index=False)
-pd.DataFrame(image_unfocused_arr).to_csv(OUTPUT_PATH_UNFOCUSED, index=False)
+    try:
+        # Focused reconstruction (using Psi coefficients)
+        image_focused = compute_image_integral_torch(x_range_np, signal_vals, model_output_complex, kpsi_values_np, F, DX, xi)
+
+        # Unfocused reconstruction (Psi coefficients set to zero)
+        image_unfocused = compute_image_integral_torch(x_range_np, signal_vals, torch.zeros_like(model_output_complex), kpsi_values_np, F, DX, xi)
+
+        # Convert back to numpy for storage
+        image_focused = image_focused.detach().cpu().numpy()
+        image_unfocused = image_unfocused.detach().cpu().numpy()
+
+        # Ensure enough length remains after trimming
+        if len(image_focused) <= 2 * final_trim:
+            print(f"Skipping sample {i} due to insufficient length after trim")
+            continue
+
+        # Symmetric trimming (remove edges corresponding to aperture half-width)
+        image_focused_trimmed = image_focused[final_trim:-final_trim]
+        image_unfocused_trimmed = image_unfocused[final_trim:-final_trim]
+
+        # Accumulate results
+        image_focused_all.append(image_focused_trimmed)
+        image_unfocused_all.append(image_unfocused_trimmed)
+
+    except Exception as e:
+        print(f"Skipping sample {i} due to exception: {e}")
+        continue
+
+# ================================================================
+# FINAL SAVE
+# ================================================================
+
+# Trimmed x-range (same length as reconstructed images)
+x_trimmed = x_range_np[final_trim:-final_trim]
+
+# Save datasets to CSV
+pd.DataFrame(image_focused_all).to_csv(OUTPUT_PATH_FOCUSED, index=False)
+pd.DataFrame(image_unfocused_all).to_csv(OUTPUT_PATH_UNFOCUSED, index=False)
 pd.DataFrame(x_trimmed).to_csv(X_TRIM_PATH, index=False, header=False)
 
 print(f"Saved focused image dataset to: {OUTPUT_PATH_FOCUSED}")

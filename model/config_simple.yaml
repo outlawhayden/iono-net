@@ -2,31 +2,32 @@ seed: 0
 
 paths:
   label_data_file_path: '/home/houtlaw/iono-net/data/aug25/train_compl_ampls_20250707_155312.csv'  # Path to label data file
-  signal_data_file_path: '/home/houtlaw/iono-net/data/aug25/train_uscStruct_vals_20250707_155313.csv'
+  signal_data_file_path: '/home/houtlaw/iono-net/data/aug25/train_image_recon_jnp_unfocused.csv'
 
   test_label_file_path: '/home/houtlaw/iono-net/data/aug25/test_compl_ampls_20250707_155324.csv'
-  test_data_file_path: '/home/houtlaw/iono-net/data/aug25/test_uscStruct_vals_20250707_155324.csv'
+  test_data_file_path: '/home/houtlaw/iono-net/data/aug25/test_image_recon_jnp_unfocused.csv'
 
   x_range_file_path: '/home/houtlaw/iono-net/data/aug25/meta_X_20250707_155325.csv'
   setup_file_path: '/home/houtlaw/iono-net/data/aug25/setup_20250707_155325.json'
   kpsi_file_path: '/home/houtlaw/iono-net/data/aug25/kPsi_20250707_155325.csv'
 
 model:
-  architecture: [64,64,32,16]  # Model architecture
+  architecture: [4096,4096,4096,4096,4096,4096,4096,4096,4096]  # Model architecture
+  #architecture: [1024,1024,1024,1024,1024,1024,1024,1024,1024,1024,1024]
   activation: 'ReLU'  # Activation function (e.g., relu, tanh, sigmoid)
-  dropout_rate: 0.2
+  dropout_rate: 0.5
 
 training:
-  batch_size: 512 # Batch size
+  batch_size: 64 # Batch size
   gradient_clip_value: 1 # Gradient clipping value
-  l2_reg_weight: 0.01
-  l4_weight: 10 # weight for l4 cost
-  fourier_weight: 0
-  fourier_d1_weight: 0
-  fourier_d2_weight: 0
+  l2_reg_weight: 0.07
+  l4_weight: 5 # weight for l4 cost
+  fourier_weight: 1
+  fourier_d1_weight: 0.1
+  fourier_d2_weight: 0.1
 
 learning_rate:
-  fixed: 0.005
+  fixed: 0.000005
 
 optimizer:
-  maxiter_adam: 120  # Maximum number of iterations for Adam optimizer
+  maxiter_adam: 100  # Maximum number of iterations for Adam optimizer

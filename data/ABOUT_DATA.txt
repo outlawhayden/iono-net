@@ -1,0 +1,7 @@
+SAR_AF_ML_toyDataset_etc:
+- check_dataset.ipynb, check_image_dataset.ipynb - manually examine dataset entries for sanity
+- testCreateDataForAI: generate dataset in MATLAB, saves out to radarSeries.mat. Parameters are configured ahead of time at top of file
+- coeffsToCSV: convert radarSeries.mat to csv files to be read into pythons scripts. Note you have to manually set the path for export, and make sure the number of samples aligns with what is defined in testCreateDataForAI (if less than full dataset, will generate partial dataset only)
+- signal_to_image_dataset: based on csvs in original dataset (scatterers, reflection signals, phase screens), generate corresponding focused image and unfocused images in csv. Useful for precomputing imaging for all data samples ahead of time. I had a hard time ironing out all of the bugs here since I had to reimplement in Python - I'm pretty sure I got them all, but no guarantees. If you're having issues with your dataset, check here first.
+
+Otherwise, all directories are different datasets. For dataset attributes (F, ionoNharm, xi, noise/speckle coeffs, etc.,), check setup json file

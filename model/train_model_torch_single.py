@@ -16,7 +16,7 @@ with open("config_simple.yaml", "r") as f:
     config = yaml.safe_load(f)
 
 # === Parameters ===
-NUM_SAMP = 8  # Number of samples to use in training
+NUM_SAMP = 1  # Number of samples to use in training
 DX = 0.25
 zero_pad = 50
 csv_path = "multi_sample_l4_loss.csv"
@@ -44,7 +44,7 @@ def compute_l4_image_loss_torch_no_class(x_range, signal_vals, model_output_comp
     complex_signal = torch.tensor(signal_vals[1], dtype=torch.cfloat, device=device)
     signal_tensor = torch.stack([real_signal, complex_signal])
     cosAmps = model_output_complex.real
-    sinAmps = -model_output_complex.imag
+    sinAmps = -model_output_complex.imag # NEGATIVE
 
     wavenums = torch.tensor(kpsi_values, dtype=torch.float64, device=device)
     F = torch.tensor(F, dtype=torch.float64, device=device)
@@ -159,8 +159,8 @@ dropout_rate = config['model'].get('dropout_rate', 0.0)
 model = ConfigurableModel(config['model']['architecture'], activation_fn=activation_cls, input_dim=input_dim, dropout_rate=dropout_rate).to(device)
 
 # === Training ===
-optimizer = optim.AdamW(model.parameters(), lr=0.0005)
-epochs = 500
+optimizer = optim.AdamW(model.parameters(), lr=0.0001)
+epochs = 1000
 with open(csv_path, "w") as f:
     f.write("Epoch,L4Loss\n")
 
@@ -186,3 +186,5 @@ for epoch in tqdm(range(epochs)):
 # === Save Model ===
 with open("torch_model_weights_multi.pkl", "wb") as f:
     pickle.dump(model.state_dict(), f)
+    
+print("weights saved...")

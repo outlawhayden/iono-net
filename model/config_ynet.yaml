@@ -1,29 +1,41 @@
-seed: 0
+# === config_focus.yaml: Y-Net for image + coefficient prediction ===
 
 paths:
-  label_data_file_path: "/home/houtlaw/iono-net/data/0.5iono/train_compl_ampls_20250625_123748.csv"
-  signal_data_file_path: "/home/houtlaw/iono-net/data/0.5iono/train_uscStruct_vals_20250625_123748.csv"
-  focused_image_file_path: "/home/houtlaw/iono-net/data/0.5iono/train_image_recon_jnp.csv"
+  unfocused_train: "/home/houtlaw/iono-net/data/aug25/train_image_recon_jnp_unfocused.csv"
+  focused_train:   "/home/houtlaw/iono-net/data/aug25/train_image_recon_jnp.csv"
+  coeff_train:     "/home/houtlaw/iono-net/data/aug25/train_compl_ampls_20250707_155312.csv"         # NEW: 12 real values per row
 
-  test_label_file_path: "/home/houtlaw/iono-net/data/0.5iono/test_compl_ampls_20250625_123749.csv"
-  test_data_file_path: "/home/houtlaw/iono-net/data/0.5iono/test_uscStruct_vals_20250625_123749.csv"
-  test_focused_image_file_path: "/home/houtlaw/iono-net/data/0.5iono/test_image_recon_jnp.csv"
+  unfocused_val:   "/home/houtlaw/iono-net/data/aug25/test_image_recon_jnp_unfocused.csv"
+  focused_val:     "/home/houtlaw/iono-net/data/aug25/test_image_recon_jnp.csv"
+  coeff_val:       "/home/houtlaw/iono-net/data/aug25/test_compl_ampls_20250707_155324.csv"           # NEW: 12 real values per row
+  scatterers:      "/home/houtlaw/iono-net/data/aug25/test_nuStruct_withSpeckle_20250707_155322.csv"
+  x_range:         "/home/houtlaw/iono-net/data/aug25/x_range_image_recon_jnp.csv"
+  kpsi:            "/home/houtlaw/iono-net/data/aug25/kPsi_20250707_155325.csv"
+  setup:           "/home/houtlaw/iono-net/data/aug25/setup_20250707_155325.json"
 
 model:
-  architecture: [32, 64, 128, 256, 512, 1024, 2048]
-  psi_head_arch: [512, 128]
-  image_head_arch:  [2048, 1024, 512, 256, 128, 64, 32]
-  activation: "ReLU"
-  dropout_rate: 0.1
+  base_channels: 12
+  dropout_rate:  0.20
+  depth:         9
+
+loss:
+  l4_weight:    0.0 # Image sparsity loss (negative L4)
+  coef_weight:  1 #0.15    # Coefficient regression weight
+  recon_accuracy_weight: 1
 
 optimizer:
-  maxiter_adam: 10000
-
-learning_rate:
-  fixed: 0.00001
+  lr: 0.00008
+  weight_decay: 0.33
 
 training:
-  batch_size: 64
-  l2_reg_weight: 0.001
-  coeff_loss_weight: 1
-  image_loss_weight: 1
+  epochs: 10
+  batch_size: 8
+  num_workers: 8
+  max_train_samples: null   # null = use all
+  max_val_samples:   null
+  early_stopping_patience: 15
+  early_stopping_min_delta: 0.00001
+
+params:
+  F: 100
+  dx: 0.25

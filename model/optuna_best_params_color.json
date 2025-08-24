@@ -1,9 +1,0 @@
-{
-  "n_layers": 9,
-  "layer_width": 128,
-  "learning_rate": 4.465486962065361e-05,
-  "l2_reg_weight": 0.030314712272145976,
-  "l4_weight": 0.21645639359563482,
-  "fourier_weight": 0.20466552180692724,
-  "amplitude_weight": 0.037315372911975266
-}
